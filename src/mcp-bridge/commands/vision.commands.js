@@ -37,7 +37,7 @@ registerCommand('screenshot_visualizer', {
       default: 'image/png',
     },
   },
-  handler: (show, args) => {
+  handler: async (show, args) => {
     const handle = show.visualizerHandle;
     if (!handle) {
       throw new Error('The visualizer is not mounted yet -- open the app and '
@@ -47,6 +47,12 @@ registerCommand('screenshot_visualizer', {
     if (!canvas) {
       throw new Error('The visualizer handle exposes no WebGL canvas to capture.');
     }
+    // Fixture mutations reach the InstancedMesh matrices inside the
+    // visualizer's per-frame update, not at property-set time — capturing in
+    // the same tick reads stale matrices (issue #5). Yield two frames so the
+    // animation loop applies pending updates, then force a final render.
+    await new Promise((resolve) => { requestAnimationFrame(resolve); });
+    await new Promise((resolve) => { requestAnimationFrame(resolve); });
     if (typeof handle.render === 'function') {
       handle.render();
     }
