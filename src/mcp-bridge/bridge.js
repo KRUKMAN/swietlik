@@ -198,7 +198,19 @@ export default class Bridge {
       }
       return;
     }
-    const response = await this.dispatchFn(this.show, message);
-    this.send(response);
+    try {
+      const response = await this.dispatchFn(this.show, message);
+      this.send(response);
+    } catch (err) {
+      // `dispatch` converts command failures into envelopes itself, so what
+      // lands here is the envelope never making it onto the wire -- a result
+      // holding a circular reference or a live model object, which only fails
+      // once `send` reaches JSON.stringify. Letting that escape would be an
+      // unhandled rejection AND leave the caller waiting out its timeout with
+      // no answer, so reply by id instead.
+      const detail = err && err.message ? err.message : String(err);
+      this.logger.warn(`[mcp-bridge] could not answer request ${message.id}: ${detail}`);
+      this.send(makeError(message.id, ERROR_CODES.COMMAND_ERROR, detail));
+    }
   }
 }

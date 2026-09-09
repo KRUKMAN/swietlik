@@ -40,6 +40,20 @@ function selectMode(oflData, requested) {
   return mode;
 }
 
+/**
+ * Builds a fresh zeroed 3D vector.
+ *
+ * A new object every call, never a shared constant: `Fixture`'s constructor
+ * keeps `data.position` by reference (`fixture.model.js:164`), so one shared
+ * literal would alias every unplaced fixture's coordinates together.
+ *
+ * @return {Object} `{ x: 0, y: 0, z: 0 }`
+ * @private
+ */
+function origin() {
+  return { x: 0, y: 0, z: 0 };
+}
+
 registerCommand('patch_fixture', {
   description: 'Patches a fixture from the Open Fixture Library into a '
     + 'universe. Fetches the OFL definition, builds the fixture and addresses '
@@ -59,8 +73,13 @@ registerCommand('patch_fixture', {
     rotation: { type: 'object' },
   },
   handler: async (show, args) => {
-    const position = args.position ? assertVec3('position', args.position) : undefined;
-    const rotation = args.rotation ? assertVec3('rotation', args.rotation) : undefined;
+    // Concrete defaults, never `undefined`. `Fixture`'s constructor falls back
+    // to `position = { x: this.id, ... }` when `data.position` is missing, and
+    // `this.id` is `parseInt(data.id, 10)` -- NaN here, because `addRaw`
+    // assigns the real id only AFTER construction (fixture.pool.model.js:96).
+    // An omitted position would otherwise land the fixture at x: NaN.
+    const position = args.position ? assertVec3('position', args.position) : origin();
+    const rotation = args.rotation ? assertVec3('rotation', args.rotation) : origin();
 
     const universe = show.universePool.getFromId(args.universe);
     const oflData = await fetchOFL(args.manufacturer, args.model);

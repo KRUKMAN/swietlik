@@ -149,6 +149,54 @@ describe('patch_fixture', () => {
     expect(fixture.rotation.z).toBeCloseTo(30, 10);
   });
 
+  it('defaults an omitted position and rotation to finite zeroes, never NaN', async () => {
+    // Regression: the command used to pass `position: undefined` and no `id`,
+    // so Fixture's constructor fell back to `position.x = this.id` --
+    // `parseInt(undefined, 10)` -- and landed the fixture at x: NaN.
+    const show = makeShowDouble();
+    const patched = resultOf(await dispatch(show, {
+      id: 'p15', cmd: 'patch_fixture', args: { manufacturer: 'clay-paky', model: 'sharpy' },
+    }));
+
+    const fixture = show.fixturePool.getFromId(patched.id);
+    ['x', 'y', 'z'].forEach((axis) => {
+      expect(Number.isFinite(fixture.position[axis])).toBe(true);
+      expect(Number.isFinite(fixture.rotation[axis])).toBe(true);
+    });
+    expect(fixture.position).toEqual({ x: 0, y: 0, z: 0 });
+    expect(fixture.rotation).toEqual({ x: 0, y: 0, z: 0 });
+  });
+
+  it('defaults rotation alone when only position was given', async () => {
+    const show = makeShowDouble();
+    const patched = resultOf(await dispatch(show, {
+      id: 'p16',
+      cmd: 'patch_fixture',
+      args: {
+        manufacturer: 'clay-paky', model: 'sharpy', position: { x: 2, y: 3, z: 4 },
+      },
+    }));
+
+    const fixture = show.fixturePool.getFromId(patched.id);
+    expect(fixture.position).toEqual({ x: 2, y: 3, z: 4 });
+    expect(fixture.rotation).toEqual({ x: 0, y: 0, z: 0 });
+  });
+
+  it('defaults position alone when only rotation was given', async () => {
+    const show = makeShowDouble();
+    const patched = resultOf(await dispatch(show, {
+      id: 'p17',
+      cmd: 'patch_fixture',
+      args: {
+        manufacturer: 'clay-paky', model: 'sharpy', rotation: { x: 90, y: 0, z: 0 },
+      },
+    }));
+
+    const fixture = show.fixturePool.getFromId(patched.id);
+    expect(fixture.position).toEqual({ x: 0, y: 0, z: 0 });
+    expect(fixture.rotation.x).toBe(90);
+  });
+
   it('reuses the OFL cache across two patches of the same model', async () => {
     const show = makeShowDouble();
     await dispatch(show, {

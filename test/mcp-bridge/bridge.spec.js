@@ -2,7 +2,23 @@ import {
   describe, it, expect, beforeEach, vi,
 } from 'vitest';
 import Bridge from '@/mcp-bridge/bridge';
+import { registerCommand, dispatch } from '@/mcp-bridge/commands/registry';
 import { makeRequest, makeSuccess, makeDetach } from '@root/mcp/protocol';
+
+/**
+ * Test-only command whose result cannot survive `JSON.stringify`. Registered
+ * here rather than in a `*.commands.js` so no shipped command has to misbehave
+ * to prove the bridge survives one that does.
+ */
+registerCommand('circular_probe', {
+  description: 'Test-only command returning a self-referential object.',
+  args: {},
+  handler: () => {
+    const loop = { name: 'loop' };
+    loop.self = loop;
+    return loop;
+  },
+});
 
 /**
  * Minimal scriptable WebSocket stand-in. Instances register themselves so the
@@ -266,6 +282,41 @@ describe('Bridge -- message handling', () => {
     vi.advanceTimersByTime(60000);
     expect(FakeWebSocket.instances).toHaveLength(1);
     expect(logger.warn).toHaveBeenCalled();
+  });
+
+  it('answers with an error envelope when the result cannot be serialised', async () => {
+    // A circular result makes `send`'s JSON.stringify throw. Without a guard
+    // around dispatch+send that surfaces as an unhandled rejection and the
+    // caller waits out its timeout with no response at all.
+    const { bridge } = buildBridge({ dispatchFn: dispatch });
+    bridge.connect();
+    FakeWebSocket.last.open();
+
+    await expect(bridge.handleMessage(
+      JSON.stringify(makeRequest('r6', 'circular_probe', {})),
+    )).resolves.toBeUndefined();
+
+    expect(FakeWebSocket.last.sent).toHaveLength(1);
+    expect(FakeWebSocket.last.sent[0]).toMatchObject({
+      type: 'response',
+      id: 'r6',
+      ok: false,
+      error: { code: 'COMMAND_ERROR' },
+    });
+  });
+
+  it('answers with an error envelope when the dispatcher itself rejects', async () => {
+    const dispatchFn = vi.fn(() => Promise.reject(new Error('dispatcher exploded')));
+    const { bridge } = buildBridge({ dispatchFn });
+    bridge.connect();
+    FakeWebSocket.last.open();
+
+    await bridge.handleMessage(JSON.stringify(makeRequest('r7', 'undo', {})));
+
+    expect(FakeWebSocket.last.sent).toHaveLength(1);
+    expect(FakeWebSocket.last.sent[0].id).toBe('r7');
+    expect(FakeWebSocket.last.sent[0].error.code).toBe('COMMAND_ERROR');
+    expect(FakeWebSocket.last.sent[0].error.message).toContain('dispatcher exploded');
   });
 
   it('drops the response when the socket closed mid-dispatch', async () => {

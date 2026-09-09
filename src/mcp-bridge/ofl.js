@@ -63,7 +63,9 @@ export async function fetchOFL(manufacturer, model) {
 }
 
 /**
- * Empties the OFL cache. Used by tests and by `new_show`.
+ * Empties the OFL cache. Test-only: no command clears it, because the cache
+ * holds immutable library definitions keyed by manufacturer/model, which
+ * outlive any one show.
  *
  * @public
  */
