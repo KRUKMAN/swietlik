@@ -141,10 +141,6 @@ export default {
   border: unset!important;
   padding: 64px;
 }
-.ASLS_logo {
-  opacity: 0.7;
-  text-align: center;
-}
 .loader_message {
   position: absolute;
   bottom: 1px;
