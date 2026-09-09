@@ -62,3 +62,4 @@ agent with no memory of this session, it is a lesson.
 ### dependencies
 
 - [A pinned dependency's own metadata can be platform-wrong — pin forward, not back](lessons/a-pinned-dependencys-metadata-can-be-platform-wrong.md) — area:dependencies,build-tooling; topic:install-failures,platform-windows,version-pins
+- [Never `git add -A` while other agents write concurrently — stage explicit paths](lessons/never-git-add-all-while-agents-write-concurrently.md) — area:git,orchestration; topic:concurrent-agents,commit-hygiene,staging
