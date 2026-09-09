@@ -56,7 +56,7 @@
           </p>
           <p>
             Released under the&nbsp;<a
-              href="/COPYING"
+              href="/COPYING.txt"
               traget="_blank"
             >GPLv3 License</a>
           </p>

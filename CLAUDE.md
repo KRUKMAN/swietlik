@@ -202,7 +202,7 @@ See [`docs/swietlik/verification.md`](docs/swietlik/verification.md) for the ren
 | `public/icon.png`, `public/icon.icns`, `public/icon.macos.png` | Still upstream ASLS artwork. Electron-only assets; harmless while Electron is out of scope. |
 | `docs/manual/**/*.md` | Prose still describes "ASLS Studio" (only `.vitepress/config.js` and `introduction/installation.md` were touched). |
 | `docs/manual/public/` images | `studio_standalone_logo.png`, `studio_standalone_logo_dark.png`, `ASLSlogo.png`, `asls*.png` all still upstream art and still referenced by the vitepress config. |
-| `public/COPYING` | Duplicate of root COPYING so the built app serves the splash's /COPYING link. Sync both if the text ever changes. |
+| `public/COPYING.txt` | Duplicate of root COPYING so the built app serves the splash link (named .txt — a public file named COPYING shadows the `@root/COPYING?raw` module URL in dev and breaks the entire app). Sync both if the text ever changes. |
 | `.asls` showfile extension | **Intentionally kept.** It is a file-format contract with existing showfiles; renaming it breaks user data. Also `DEFAULT_PROJECT_NAME = 'new_project.asls'`. |
 | Electron build | Completely unverified in this fork. |
 | 12 lint warnings | Pre-existing upstream: 8× `no-console`, 1× `func-names`, 1× `vue/no-v-html`, plus others. 0 errors. Not worth fixing (merge debt for nothing). |
