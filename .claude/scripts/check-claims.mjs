@@ -52,17 +52,31 @@ const claudeMd = read('CLAUDE.md');
 // count is asserted, and a mismatch points at the sentence that needs editing.
 // ---------------------------------------------------------------------------
 if (claudeMd) {
-  const match = claudeMd.match(/(\d+)\s+tests?\s+across\s+(\d+)\s+files?/i);
+  const match = claudeMd.match(/(.{0,40}?)(\d+)\s+tests?\s+across\s+(\d+)\s+files?/i);
   if (match) {
-    const claimedFiles = Number(match[2]);
+    const [, prefix, , claimedFiles] = match;
     const actualFiles = countSpecFiles(join(root, 'test')).length;
-    if (claimedFiles !== actualFiles) {
-      errors.push(
-        `CLAUDE.md claims "${match[0]}" but there are ${actualFiles} *.spec.js files under test/.`
-        + ' Update the sentence (and re-check the test count while you are there).',
+    /**
+     * A claim scoped to a past milestone ("Phase 0 close: 156 tests across 10 files") is a
+     * historical record, not an assertion about the working tree, and failing on it would punish
+     * the repo for making progress. Only an unscoped, present-tense claim is asserted; a drifted
+     * historical one is still surfaced, because a stale *baseline* is worth knowing about even
+     * when it is not wrong.
+     */
+    const historical = /\b(?:phase\s*\d+\s*close|as of|at\s+the\s+time)\b/i.test(prefix);
+    if (Number(claimedFiles) === actualFiles) {
+      notes.push(`spec-file count: ${actualFiles} (matches CLAUDE.md)`);
+    } else if (historical) {
+      notes.push(
+        `CLAUDE.md's historical baseline says ${claimedFiles} spec files; there are now`
+        + ` ${actualFiles}. Not an error — but confirm the newer files are genuinely new work.`,
       );
     } else {
-      notes.push(`spec-file count: ${actualFiles} (matches CLAUDE.md)`);
+      errors.push(
+        `CLAUDE.md claims "${match[0].slice(prefix.length)}" but there are ${actualFiles}`
+        + ' *.spec.js files under test/. Update the sentence, or scope it to a phase close'
+        + ' if it is meant as a historical baseline.',
+      );
     }
   } else {
     notes.push('no "N tests across M files" claim found in CLAUDE.md — nothing to check');

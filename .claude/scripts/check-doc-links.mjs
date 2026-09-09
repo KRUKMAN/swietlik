@@ -66,7 +66,7 @@ const errors = [];
 let checked = 0;
 
 for (const file of targets) {
-  const source = readFileSync(file, 'utf8');
+  const source = stripFences(readFileSync(file, 'utf8'));
   const shown = relativePath(root, file).replace(/\\/g, '/');
   for (const match of source.matchAll(LINK_PATTERN)) {
     const target = match[1];
