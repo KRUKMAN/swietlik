@@ -11,7 +11,7 @@ git diff develop...HEAD --name-status
 `develop` is the pristine `ASLS-org/studio` mirror, so this diff *is* the fork's divergence. Keep this file in sync — **any new upstream edit must be added here in the same change that makes it** (see `/CLAUDE.md` §2).
 
 - **Scope of this snapshot:** Phase 0 (branch `phase-0-foundation`)
-- **Totals:** 46 files changed, +4165 / −5946 (of which `package-lock.json` alone is +6891/−… churn from the dependency bump)
+- **Totals:** 52 files changed, +5337 / −5954 (of which `package-lock.json` alone is +1298/−5597 churn from the dependency bump and package rename)
 
 ---
 
@@ -54,6 +54,7 @@ git diff develop...HEAD --name-status
 | `src/views/activities/app/_popups/popup.splash.vue` | Branding: Świetlik wordmark, release/branch links repointed to `KRUKMAN/swietlik`, copyright line reworked to `KRUKMAN © 2026 · based on ASLS Studio © ASLS-org 2021–2026`. |
 | `src/views/activities/app/fragments/toolbar/toolbar.fragment.vue` | Branding: added a persistent `KRUKMAN © 2026 · based on ASLS Studio` toolbar strip (attribution surface); Manual/Contact menu links repointed to this repo and `github.com/KRUKMAN`. |
 | `src/views/activities/app/fragments/toolbar/_popups/popup.newshow.vue` | Branding: template entry `ASLS Demo` → `Demo Show`. |
+| `src/views/activities/app/fragments/toolbar/_popups/popup.saveas.vue` | Branding: default download filename `asls_showfile` → `swietlik_showfile`. |
 | `src/views/activities/app/fragments/modifiers/_widgets/modifier.widget.colorpicker.vue` | Pre-existing lint **errors** (comma-operator assignments, `let`-that-should-be-`const`, unused vars, over-long template line) blocking `lint:ci` at 0 errors. Behaviour-neutral. |
 | `src/views/components/uikit/lists/uikit.list.vue` | Pre-existing lint error: unused `e` parameter on `handleFocusOut` (and its now-stale JSDoc `@param`). Behaviour-neutral. |
 
@@ -87,7 +88,7 @@ These are **deliberate**. Do not "clean them up".
 | `docs/developer/ui/.storybook/theme.asls.js` | **Filename** kept (its contents were rebranded) — renaming means touching `manager.js`/`preview.js` imports for no functional gain. Its `brandImage` still points at `/images/asls.logo.white.png`. |
 | `src/electron/prebuild.js` | Downloads the WSC gateway binary from `github.com/ASLS-org/WSC/releases` — that is genuinely where it lives. Electron is out of scope anyway. |
 | `test/models/show.spec.js`, `test/stubs/wsc.connection.stub.js` | Our own files; they reference the legacy key and the WSC API by name on purpose. |
-| `index.html` `<noscript>` | Still says "ASLS Studio" — this one is **unintentional**, logged as known debt in `/CLAUDE.md` §9. |
+| `index.html` `<noscript>` | Fixed in the docs commit — now reads "Świetlik". |
 
 ---
 
