@@ -15,7 +15,7 @@ git diff develop...HEAD --name-status
 
 ---
 
-## Modified upstream files (23)
+## Modified upstream files (24)
 
 ### Root / config
 
@@ -62,6 +62,7 @@ git diff develop...HEAD --name-status
 | `src/views/activities/app/fragments/toolbar/_popups/popup.saveas.vue` | Branding: default download filename `asls_showfile` → `swietlik_showfile`. |
 | `src/views/activities/app/fragments/modifiers/_widgets/modifier.widget.colorpicker.vue` | Pre-existing lint **errors** (comma-operator assignments, `let`-that-should-be-`const`, unused vars, over-long template line) blocking `lint:ci` at 0 errors. Behaviour-neutral. |
 | `src/views/components/uikit/lists/uikit.list.vue` | Pre-existing lint error: unused `e` parameter on `handleFocusOut` (and its now-stale JSDoc `@param`). Behaviour-neutral. |
+| `src/App.vue` | Phase 1 MCP bridge: one side-effect import (`import '@/mcp-bridge';`) that subscribes the bridge to the existing `app_ready` EventBus event. Chosen over `app.activity.vue` because it is the smaller diff — three lines, no change to any existing statement. |
 
 ---
 
