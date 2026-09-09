@@ -44,6 +44,28 @@ const CUE_ARGS = {
 };
 
 /**
+ * Validates that every entry of an id list is a non-negative integer.
+ *
+ * The generic array validator (`./validate.js`) only checks a declared
+ * `items` base type (`'number'`, `'string'`, ...) and has no integer variant
+ * of its own, so an id array's whole-number requirement is enforced here --
+ * mirroring how `assertChannelEntries`/`assertAccessorEntries` below own the
+ * parts of validation the generic schema cannot express.
+ *
+ * @param {String} name argument name, used in the error message
+ * @param {Array<Number>} ids raw id list
+ * @throws {ValidationError} on any non-integer or negative entry
+ * @private
+ */
+function assertIntegerIds(name, ids) {
+  ids.forEach((id, index) => {
+    if (!Number.isInteger(id) || id < 0) {
+      throw new ValidationError(`Argument "${name}[${index}]" must be a non-negative integer`);
+    }
+  });
+}
+
+/**
  * Validates the structure of a `channels` entry list.
  *
  * @param {Array<Object>} channels raw entries
@@ -110,7 +132,7 @@ registerCommand('set_channels', {
     + 'Tilt, Zoom, Color, ...). Accessors a fixture lacks are reported as skipped.',
   args: {
     fixture_ids: {
-      type: 'array', required: true, items: 'number', minLength: 1,
+      type: 'array', required: true, items: 'number', itemsInteger: true, minLength: 1,
     },
     channels: { type: 'array' },
     accessors: { type: 'array' },
@@ -119,6 +141,7 @@ registerCommand('set_channels', {
     if (args.channels === undefined && args.accessors === undefined) {
       throw new ValidationError('Provide at least one of "channels" or "accessors"');
     }
+    assertIntegerIds('fixture_ids', args.fixture_ids);
     const channels = args.channels || [];
     const accessors = args.accessors || [];
     assertChannelEntries(channels);
@@ -187,10 +210,11 @@ registerCommand('add_fixtures_to_group', {
       type: 'number', required: true, integer: true, min: 0,
     },
     fixture_ids: {
-      type: 'array', required: true, items: 'number', minLength: 1,
+      type: 'array', required: true, items: 'number', itemsInteger: true, minLength: 1,
     },
   },
   handler: (show, args) => {
+    assertIntegerIds('fixture_ids', args.fixture_ids);
     const group = show.groupPool.getFromId(args.group_id);
     const fixtures = args.fixture_ids.map((id) => show.fixturePool.getFromId(id));
     fixtures.forEach((fixture) => group.addFixture(fixture));
@@ -259,9 +283,12 @@ registerCommand('create_chase', {
     trigger: {
       type: 'number', integer: true, min: 0, max: 1, default: 0,
     },
-    cue_ids: { type: 'array', items: 'number' },
+    cue_ids: { type: 'array', items: 'number', itemsInteger: true },
   },
   handler: (show, args) => {
+    if (args.cue_ids !== undefined) {
+      assertIntegerIds('cue_ids', args.cue_ids);
+    }
     const group = show.groupPool.getFromId(args.group_id);
     // getFromId throws for an id the group does not own -- resolve up front so
     // an unknown cue id fails before the chase is created.

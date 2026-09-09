@@ -26,6 +26,56 @@ const READY_STATE_OPEN = 1;
 const CLOSE_SUPERSEDED = 4000;
 
 /**
+ * Close code sent to a handshake from a disallowed Origin.
+ *
+ * @constant {Number}
+ */
+const CLOSE_ORIGIN_REJECTED = 4003;
+
+/**
+ * Origins allowed to open a WebSocket connection to the hub, beyond the Vite
+ * dev-server defaults.
+ *
+ * ADVERSARIAL REVIEW FINDING (MEDIUM): the hub binds to loopback but, before
+ * this fix, accepted a WebSocket handshake from ANY Origin. A hostile page
+ * open in the same browser could `new WebSocket('ws://127.0.0.1:5215')`,
+ * win newest-tab-wins adoption over the real app tab, and forge tool results
+ * back to the MCP server / the Claude session driving it. A browser always
+ * sends an `Origin` header on this kind of cross-origin handshake and a page
+ * cannot spoof it, so checking it here is a real boundary, not security
+ * theatre. A missing Origin header is allowed through deliberately: it is
+ * how every non-browser client speaks to this hub -- this repo's own tests,
+ * `mcp/server.js`'s own fake-app harness, and any future CLI tooling -- none
+ * of which a hostile web page can puppet. `SWIETLIK_MCP_ALLOWED_ORIGIN` lets
+ * an operator add exactly one more trusted origin (eg. a non-default dev
+ * port) without editing source.
+ *
+ * @constant {Set<String>}
+ * @private
+ */
+const DEFAULT_ALLOWED_ORIGINS = new Set([
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+]);
+
+/**
+ * Decides whether a WebSocket handshake's Origin header may adopt the hub.
+ *
+ * @param {String|undefined} origin the `Origin` header value, if any
+ * @param {Object} [env=process.env] environment bag, injectable for tests
+ * @return {Boolean} true when the connection should be allowed
+ */
+export function isOriginAllowed(origin, env = process.env) {
+  if (!origin) {
+    return true;
+  }
+  if (DEFAULT_ALLOWED_ORIGINS.has(origin)) {
+    return true;
+  }
+  return Boolean(env.SWIETLIK_MCP_ALLOWED_ORIGIN) && origin === env.SWIETLIK_MCP_ALLOWED_ORIGIN;
+}
+
+/**
  * @class HubError
  * @classdesc Error carrying one of the protocol error codes, so the MCP layer
  * can pass the code straight through to the caller.
@@ -114,11 +164,29 @@ export default class AppHub {
     });
     this.server = server;
     this.boundPort = server.address().port;
-    server.on('connection', (socket) => this.attach(socket));
+    server.on('connection', (socket, request) => this.handleConnection(socket, request));
     server.on('error', (err) => {
       this.logger.error(`[swietlik-mcp] hub error: ${err.message}`);
     });
     return this.boundPort;
+  }
+
+  /**
+   * Gatekeeper for a raw WebSocket handshake: checks the Origin allowlist
+   * before the socket is ever adopted, then hands off to `attach`.
+   *
+   * @param {Object} socket ws socket
+   * @param {Object} request the underlying HTTP upgrade request
+   * @private
+   */
+  handleConnection(socket, request) {
+    const origin = request && request.headers ? request.headers.origin : undefined;
+    if (!isOriginAllowed(origin)) {
+      this.logger.warn(`[swietlik-mcp] rejected a WebSocket handshake from disallowed Origin "${origin}"`);
+      socket.close(CLOSE_ORIGIN_REJECTED, 'origin not allowed');
+      return;
+    }
+    this.attach(socket);
   }
 
   /**
@@ -137,6 +205,9 @@ export default class AppHub {
         // The old tab may already be gone; nothing to do.
       }
       previous.close(CLOSE_SUPERSEDED, 'superseded');
+      // Whatever was in flight to the old socket can never be answered --
+      // fail it now instead of leaving it to die as a misleading TIMEOUT.
+      this.rejectPending('a newer Świetlik tab took over the bridge');
       this.logger.warn('[swietlik-mcp] a newer Świetlik tab took over the bridge');
     }
     this.socket = socket;
@@ -145,12 +216,38 @@ export default class AppHub {
     socket.on('close', () => {
       if (this.socket === socket) {
         this.socket = null;
+        this.rejectPending('the Świetlik app disconnected');
         this.logger.warn('[swietlik-mcp] Świetlik app disconnected');
       }
     });
     socket.on('error', () => {
       // A close event always follows.
     });
+  }
+
+  /**
+   * Rejects every pending call with APP_NOT_CONNECTED and clears its timer.
+   *
+   * Called when the socket those calls were sent to is no longer able to
+   * answer them -- either it closed, or a newer tab superseded it -- so a
+   * caller gets a prompt, accurate error instead of riding out the full
+   * command deadline as a misleading TIMEOUT.
+   *
+   * @param {String} detail short human-readable reason, appended to the remedy
+   * @private
+   */
+  rejectPending(detail) {
+    if (!this.pending.size) {
+      return;
+    }
+    this.pending.forEach((entry) => {
+      clearTimeout(entry.timer);
+      entry.reject(new HubError(
+        ERROR_CODES.APP_NOT_CONNECTED,
+        `${APP_NOT_CONNECTED_REMEDY} (${detail}.)`,
+      ));
+    });
+    this.pending.clear();
   }
 
   /**

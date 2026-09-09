@@ -3,7 +3,7 @@ import {
   describe, it, expect, beforeEach, afterEach,
 } from 'vitest';
 import WebSocket from 'ws';
-import AppHub, { HubError } from '@root/mcp/hub';
+import AppHub, { HubError, isOriginAllowed } from '@root/mcp/hub';
 import {
   makeSuccess,
   makeError,
@@ -192,6 +192,108 @@ describe('AppHub -- newest tab wins', () => {
     first.send(JSON.stringify(makeSuccess('r0', 'stale')));
 
     await expect(hub.call('undo')).resolves.toBe('second');
+  });
+});
+
+describe('AppHub -- stranded pending requests', () => {
+  it('rejects an in-flight call with APP_NOT_CONNECTED, promptly, when the app socket closes', async () => {
+    const app = await connectFakeApp(() => null); // never answers -- would otherwise time out
+    await waitForAttach();
+
+    const started = Date.now();
+    const pending = hub.call('undo').catch((err) => err);
+    app.close();
+
+    const rejection = await pending;
+    const elapsed = Date.now() - started;
+
+    expect(rejection).toBeInstanceOf(HubError);
+    expect(rejection.code).toBe('APP_NOT_CONNECTED');
+    // hub is configured with a 300ms timeout in beforeEach -- a prompt reject
+    // must land well under that, not ride out the deadline.
+    expect(elapsed).toBeLessThan(150);
+    expect(hub.pending.size).toBe(0);
+  });
+
+  it('rejects an in-flight call with APP_NOT_CONNECTED, promptly, when a newer tab supersedes it', async () => {
+    await connectFakeApp(() => null);
+    await waitForAttach();
+
+    const started = Date.now();
+    const pending = hub.call('undo').catch((err) => err);
+    await connectFakeApp((request) => makeSuccess(request.id, 'second'));
+
+    const rejection = await pending;
+    const elapsed = Date.now() - started;
+
+    expect(rejection).toBeInstanceOf(HubError);
+    expect(rejection.code).toBe('APP_NOT_CONNECTED');
+    expect(elapsed).toBeLessThan(150);
+
+    // the hub must still be usable through the newer tab afterwards.
+    await expect(hub.call('redo')).resolves.toBe('second');
+  });
+});
+
+describe('AppHub -- origin allowlist', () => {
+  it('rejects a browser-like Origin that is not on the allowlist', async () => {
+    const socket = new WebSocket(`ws://127.0.0.1:${hub.port}`, {
+      headers: { Origin: 'http://evil.example' },
+    });
+    sockets.push(socket);
+
+    const closeCode = await new Promise((resolve, reject) => {
+      socket.on('close', (code) => resolve(code));
+      socket.on('error', () => {}); // an abrupt server-side close can surface as a socket error too
+      setTimeout(() => reject(new Error('socket was never closed by the hub')), 1000);
+    });
+
+    expect(closeCode).toBe(4003);
+    expect(hub.connected).toBe(false);
+  });
+
+  it('accepts an allowed browser Origin', async () => {
+    const socket = new WebSocket(`ws://127.0.0.1:${hub.port}`, {
+      headers: { Origin: 'http://localhost:5173' },
+    });
+    sockets.push(socket);
+
+    await new Promise((resolve, reject) => {
+      socket.on('open', resolve);
+      socket.on('error', reject);
+    });
+    await waitForAttach();
+
+    expect(hub.connected).toBe(true);
+  });
+
+  it('still accepts Node ws clients that send no Origin header at all', async () => {
+    // this is the existing fake-app test harness -- it must keep working.
+    await connectFakeApp(() => null);
+    await waitForAttach();
+    expect(hub.connected).toBe(true);
+  });
+});
+
+describe('isOriginAllowed -- pure decision function', () => {
+  it('allows a missing Origin header (non-browser client)', () => {
+    expect(isOriginAllowed(undefined)).toBe(true);
+    expect(isOriginAllowed('')).toBe(true);
+  });
+
+  it('allows the default dev-server origins', () => {
+    expect(isOriginAllowed('http://localhost:5173')).toBe(true);
+    expect(isOriginAllowed('http://127.0.0.1:5173')).toBe(true);
+  });
+
+  it('rejects an arbitrary origin', () => {
+    expect(isOriginAllowed('http://evil.example')).toBe(false);
+  });
+
+  it('allows an origin matching SWIETLIK_MCP_ALLOWED_ORIGIN', () => {
+    const env = { SWIETLIK_MCP_ALLOWED_ORIGIN: 'http://trusted.example' };
+    expect(isOriginAllowed('http://trusted.example', env)).toBe(true);
+    expect(isOriginAllowed('http://other.example', env)).toBe(false);
   });
 });
 

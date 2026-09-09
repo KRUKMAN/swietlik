@@ -146,6 +146,20 @@ describe('set_channels -- raw channel indices', () => {
     expect(envelope.ok).toBe(false);
     expect(fixture.channels[0].value.DMX).toBe(0);
   });
+
+  it('rejects a non-integer fixture id, mutating nothing', async () => {
+    const { show, fixture } = showWithGroup();
+    const envelope = await dispatch(show, {
+      id: 'c13',
+      cmd: 'set_channels',
+      args: { fixture_ids: [1.5], channels: [{ index: 0, value: 255 }] },
+    });
+    expect(envelope.error).toEqual({
+      code: 'VALIDATION',
+      message: 'set_channels: Argument "fixture_ids[0]" must be a non-negative integer',
+    });
+    expect(fixture.channels[0].value.DMX).toBe(0);
+  });
 });
 
 describe('set_channels -- quick accessors', () => {
@@ -272,6 +286,21 @@ describe('create_group and add_fixtures_to_group', () => {
     expect(envelope.ok).toBe(false);
     expect(envelope.error.code).toBe('COMMAND_ERROR');
   });
+
+  it('rejects a non-integer fixture id, adding nothing', async () => {
+    const show = makeShowDouble();
+    const group = show.groupPool.addRaw({ name: 'Movers' });
+    const envelope = await dispatch(show, {
+      id: 'g6',
+      cmd: 'add_fixtures_to_group',
+      args: { group_id: group.id, fixture_ids: [2.2] },
+    });
+    expect(envelope.error).toEqual({
+      code: 'VALIDATION',
+      message: 'add_fixtures_to_group: Argument "fixture_ids[0]" must be a non-negative integer',
+    });
+    expect(group.fixturePool.fixtures).toHaveLength(0);
+  });
 });
 
 describe('create_scene and create_effect', () => {
@@ -372,6 +401,22 @@ describe('create_chase', () => {
     });
     expect(envelope.ok).toBe(false);
     expect(envelope.error.code).toBe('COMMAND_ERROR');
+  });
+
+  it('rejects a non-integer cue id, creating nothing', async () => {
+    const { show, group } = showWithGroup();
+    group.addCue({ type: 0, name: 'A' });
+
+    const envelope = await dispatch(show, {
+      id: 'h4',
+      cmd: 'create_chase',
+      args: { group_id: group.id, cue_ids: [0.5] },
+    });
+    expect(envelope.error).toEqual({
+      code: 'VALIDATION',
+      message: 'create_chase: Argument "cue_ids[0]" must be a non-negative integer',
+    });
+    expect(group.chasePool.chases).toHaveLength(0);
   });
 });
 
