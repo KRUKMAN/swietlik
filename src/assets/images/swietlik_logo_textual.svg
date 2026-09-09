@@ -1,0 +1,15 @@
+<svg width="620" height="140" viewBox="0 0 620 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="swietlik-wordmark-cone" x1="52" y1="8" x2="52" y2="78" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFB84D" stop-opacity="0.95" />
+      <stop offset="1" stop-color="#FFB84D" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+
+  <!-- accent: downward light cone above the wordmark -->
+  <path d="M52 8L82 78H22L52 8Z" fill="url(#swietlik-wordmark-cone)" />
+
+  <!-- wordmark -->
+  <text x="108" y="95" font-family="Roboto, Arial, sans-serif" font-weight="700" font-size="58"
+    letter-spacing="4" fill="#FFFFFF">ŚWIETLIK</text>
+</svg>

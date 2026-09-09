@@ -12,8 +12,8 @@ import { create } from '@storybook/theming';
 //
 export default create({
   base: 'dark',
-  brandTitle: 'ASLS Studio storybook',
-  brandUrl: 'https://demo.studio.asls.timekadel.com',
+  brandTitle: 'Świetlik storybook',
+  brandUrl: 'https://github.com/KRUKMAN/swietlik',
   brandImage: '/images/asls.logo.white.png',
   brandTarget: '_self',
 

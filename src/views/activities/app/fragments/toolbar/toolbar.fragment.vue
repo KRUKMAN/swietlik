@@ -46,6 +46,14 @@
     >
       <h3>TAP TEMPO</h3>
     </uk-flex>
+    <uk-flex
+      center-both
+      class="copyright_container"
+    >
+      <p class="copyright_text">
+        KRUKMAN © 2026 · based on ASLS Studio
+      </p>
+    </uk-flex>
     <visualizer-popup v-model="visualizerPopupState" />
     <license-popup v-model="licensePopupState" />
     <credits-popup v-model="creditsPopupState" />
@@ -219,7 +227,7 @@ export default {
               name: 'Manual',
               icon: 'help',
               callback: () => {
-                window.open('https://studio.asls.timekadel.com/', '_blank');
+                window.open('https://github.com/KRUKMAN/swietlik', '_blank');
               },
             },
             {
@@ -240,7 +248,7 @@ export default {
               name: 'Contact',
               icon: 'contact',
               callback: () => {
-                window.open('https://github.com/timekadel', '_blank');
+                window.open('https://github.com/KRUKMAN', '_blank');
               },
             },
           ],
@@ -411,6 +419,15 @@ export default {
   height: 100%;
   padding: 0 16px;
   border-left: 1px solid var(--primary-dark);
+}
+.copyright_container {
+  height: 100%;
+  padding: 0 16px;
+}
+.copyright_text {
+  font-size: 11px;
+  opacity: .6;
+  white-space: nowrap;
 }
 .state_container{
   width: 100px;

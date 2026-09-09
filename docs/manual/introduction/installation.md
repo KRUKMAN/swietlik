@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://studio.asls.io/" target="blank"><img src="../../../src/assets/images/studio_logo_textual.svg" height="100" alt="ASLS Studio logo" /></a>
+  <a href="https://studio.asls.io/" target="blank"><img src="../../../src/assets/images/swietlik_logo_textual.svg" height="100" alt="Świetlik logo" /></a>
   <p align="center">Open source, web-based, show control software and visualizer </p>
 </p>
 

@@ -29,8 +29,8 @@
               traget="_blank"
               :href="
                 versionData.version
-                  ? `https://github.com/ASLS-org/studio/releases/tag/${versionData.version}`
-                  : 'https://github.com/ASLS-org/studio/releases/'
+                  ? `https://github.com/KRUKMAN/swietlik/releases/tag/${versionData.version}`
+                  : 'https://github.com/KRUKMAN/swietlik/releases/'
               "
             >{{ versionData.version || 'no-version-data' }}</a>
           </p>
@@ -40,16 +40,19 @@
               traget="_blank"
               :href="
                 versionData.branch
-                  ? `https://github.com/ASLS-org/studio/tree/${versionData.branch}`
-                  : 'https://github.com/ASLS-org/studio/'
+                  ? `https://github.com/KRUKMAN/swietlik/tree/${versionData.branch}`
+                  : 'https://github.com/KRUKMAN/swietlik/'
               "
             >{{ versionData.branch || 'no-branch-data' }}</a>
           </p>
           <p>
             Copyright ©&nbsp;<a
               traget="_blank"
-              href="https://github.com/asls-org"
-            >ASLS-org</a>&nbsp;2021-{{ new Date().getFullYear() }}
+              href="https://github.com/KRUKMAN"
+            >KRUKMAN</a>&nbsp;2026 · based on ASLS Studio ©&nbsp;<a
+              traget="_blank"
+              href="https://github.com/ASLS-org/studio"
+            >ASLS-org</a>&nbsp;2021–2026
           </p>
           <p>
             Released under the&nbsp;<a
@@ -75,7 +78,7 @@
 
 <script>
 import PopupMixin from '@/views/mixins/popup.mixin';
-import StudioLogo from '@/assets/images/studio_logo_textual.svg';
+import StudioLogo from '@/assets/images/swietlik_logo_textual.svg';
 
 export default {
   name: 'UkPopupSplash',
@@ -137,10 +140,6 @@ export default {
   background: linear-gradient(111deg, #712AE5 0%, #442AE5 26.41%, #712AE5 96.16%, #712AE5 99.64%);
   border: unset!important;
   padding: 64px;
-}
-.ASLS_logo {
-  opacity: 0.7;
-  text-align: center;
 }
 .loader_message {
   position: absolute;

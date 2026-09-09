@@ -1,16 +1,16 @@
 export default {
-  title: "ASLS Studio",
+  title: "Świetlik",
   description: "Open-source, web-based DMX lighting control software.",
   head:[
     ['link', { rel: "icon", type: "image/png", sizes: "32x32", href: "/studio_standalone_logo.png"}],
   ],
   themeConfig: {
-    siteTitle: "ASLS Studio",
+    siteTitle: "Świetlik",
     search:{
       provider: 'local',
     },
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/asls-org/studio' },
+      { icon: 'github', link: 'https://github.com/KRUKMAN/swietlik' },
     ],
     logo: '/studio_standalone_logo.png',
     nav: [{
@@ -27,7 +27,7 @@ export default {
       },
       {
         text: 'Download',
-        link: 'https://github.com/ASLS-org/studio'
+        link: 'https://github.com/KRUKMAN/swietlik'
       },
     ],
     sidebar: {
@@ -101,7 +101,7 @@ export default {
       }],
     },
     footer: {
-      message: "ASLS Studio - Released under the GPLv3 License",
+      message: "Świetlik - Released under the GPLv3 License",
       copyright: `Copyright (©) 2021-${new Date().getFullYear()} Timé Kadel.`
     },
     markdown: {

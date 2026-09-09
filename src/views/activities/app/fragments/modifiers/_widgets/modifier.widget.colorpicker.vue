@@ -42,7 +42,8 @@
             ref="lightness_preview"
             class="lightness_preview"
             :style="{
-              background: `rgb(${modes[1].channels[0].val},${modes[1].channels[1].val},${modes[1].channels[2].val})`,
+              background: `rgb(${modes[1].channels[0].val},
+                ${modes[1].channels[1].val},${modes[1].channels[2].val})`,
             }"
           >
             <div class="lightness_preview_arrow" />
@@ -422,23 +423,22 @@ export default {
       this.$emit('input', this.rgbValue());
     },
     rgbValue() {
-      let r; let g; let b; let i; let f; let p; let q; let
-        t;
+      let r; let g; let b;
       const h = this.modes[0].channels[0].val / 360;
       const s = this.modes[0].channels[1].val / 100;
       const v = this.modes[0].channels[2].val / 100;
-      i = Math.floor(h * 6);
-      f = h * 6 - i;
-      p = v * (1 - s);
-      q = v * (1 - f * s);
-      t = v * (1 - (1 - f) * s);
+      const i = Math.floor(h * 6);
+      const f = h * 6 - i;
+      const p = v * (1 - s);
+      const q = v * (1 - f * s);
+      const t = v * (1 - (1 - f) * s);
       switch (i % 6) {
-        case 0: r = v, g = t, b = p; break;
-        case 1: r = q, g = v, b = p; break;
-        case 2: r = p, g = v, b = t; break;
-        case 3: r = p, g = q, b = v; break;
-        case 4: r = t, g = p, b = v; break;
-        case 5: r = v, g = p, b = q; break;
+        case 0: r = v; g = t; b = p; break;
+        case 1: r = q; g = v; b = p; break;
+        case 2: r = p; g = v; b = t; break;
+        case 3: r = p; g = q; b = v; break;
+        case 4: r = t; g = p; b = v; break;
+        case 5: r = v; g = p; b = q; break;
         default: break;
       }
       return [
@@ -578,8 +578,6 @@ export default {
         const { lightness_preview } = this.$refs;
         const { lightness_picker } = this.$refs;
 
-        const lightnessPickerWidth = lightness_picker.clientWidth;
-        const lightnessPickerRadius = lightnessPickerWidth / 2 - ((lightness_tick.clientWidth) / 2);
         const lightnessPickerRect = lightness_picker.getBoundingClientRect();
 
         const posX = Math.max(

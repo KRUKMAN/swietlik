@@ -3,7 +3,7 @@
 ### 
 Place your OFL-formated JSON fixture files within a folder which name should be the manufacturer's **unique name** as follows.
 ```
-ASLS_STUDIO
+swietlik
 └───public
 │   └───fixtures
 |        └───manufacturer-name
@@ -14,5 +14,5 @@ ASLS_STUDIO
 In order to apply modifications (Add/remove manufacturer and/or fixtures) you must run the following command:
 
 ```console
-foo@bar:~/ASLS_STUDIO/public/fixtures$ node update_fixturelist.js
+foo@bar:~/swietlik/public/fixtures$ node update_fixturelist.js
 ```
