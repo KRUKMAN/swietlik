@@ -1,6 +1,6 @@
 ---
 title: "Never `git add -A` while other agents write concurrently — stage explicit paths"
-areas: ["git", "orchestration"]
+areas: ["agent-workflow"]
 topics: ["concurrent-agents", "commit-hygiene", "staging"]
 ---
 
