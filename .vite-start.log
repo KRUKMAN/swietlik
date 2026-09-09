@@ -1,0 +1,11 @@
+
+> swietlik@0.1.0 start
+> vite
+
+
+  VITE v5.4.21  ready in 481 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+22:05:34 [vite] hmr update /src/views/activities/app/_popups/popup.splash.vue
