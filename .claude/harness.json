@@ -1,0 +1,47 @@
+{
+  "$comment": "Machine-readable agent-harness config for Świetlik. One definition of 'the gate', shared by hooks, slash commands, subagents and CI, so a skill can never invent its own weaker sequence. Modelled on open-mercato's .ai/agentic.config.json.",
+  "version": 1,
+  "repoRoot": "C:/dev/swietlik",
+  "baseBranch": "main",
+  "upstreamMirrorBranch": "develop",
+  "watchedSourceRoot": "src",
+  "validation": {
+    "comment": "Ordered, CI-mirroring gate. Run the smallest relevant prefix; run all of it before claiming a change is done. npm run lint (without :ci) is NOT in this list on purpose - it mutates source.",
+    "commands": [
+      "npm run lint:ci",
+      "npm run test:run",
+      "npm run build"
+    ],
+    "cheapGate": "npm run lint:ci",
+    "domainGate": "npm run test:run"
+  },
+  "gates": {
+    "comment": "Which gate must be green before concluding, per changed path. Evaluated by .claude/hooks/gate-evidence.mjs.",
+    "alwaysOnSourceChange": "lint",
+    "domainPaths": [
+      "src/models/",
+      "src/singletons/",
+      "src/plugins/"
+    ],
+    "domainGateName": "test"
+  },
+  "ledgers": {
+    "upstreamDiff": "docs/swietlik/upstream-diff.md",
+    "lessonsIndex": "docs/swietlik/lessons.md",
+    "lessonsDir": "docs/swietlik/lessons",
+    "taskRouter": "docs/swietlik/task-router.md",
+    "reviewChecklist": "docs/swietlik/review-checklist.md",
+    "contractSurfaces": "docs/swietlik/contract-surfaces.md",
+    "verification": "docs/swietlik/verification.md"
+  },
+  "instructionBudget": {
+    "comment": "Bytes. Agents load root instruction files first and truncate silently past their budget. 32768 is Codex's project_doc_max_bytes default; keep a reserve so future nested files still land.",
+    "budgetBytes": 32768,
+    "reserveBytes": 4096,
+    "files": ["CLAUDE.md", "AGENTS.md"]
+  },
+  "untestable": {
+    "comment": "Known-uncovered surfaces. A change confined to these CANNOT be evidenced by npm run test:run - it needs docs/swietlik/verification.md instead.",
+    "paths": ["src/views/", "src/plugins/visualizer/", "src/plugins/wsc.connection.js", "src/electron/"]
+  }
+}

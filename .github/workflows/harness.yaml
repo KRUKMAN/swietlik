@@ -1,0 +1,70 @@
+# Gates on the agent harness itself, not on the app.
+#
+# Separate from ci.yaml on purpose: a harness failure and an app failure are different problems
+# with different fixes, and folding them into one job makes a red check ambiguous. Open Mercato
+# keeps mutation testing out of their ci.yml for the same reason — "so a mutation result can never
+# be confused with a test failure".
+#
+# These checks are cheap (no install, no build — just Node against the repo), so this workflow is
+# fast and can be required without slowing anything down.
+name: Harness
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: harness-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The upstream-diff ledger check needs `develop` — the pristine ASLS-org/studio mirror —
+          # to decide which paths are upstream at all.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      # A rule an agent never receives is not a weak rule, it is an absent one. This fails when the
+      # root instruction files grow past the byte budget at which agents silently truncate them.
+      - name: Instruction budget
+        run: node .claude/scripts/check-instruction-budget.mjs
+
+      # The routing layer is load-bearing because agents follow its links instead of exploring.
+      # A dangling link produces no error — just an agent that quietly falls back to guessing.
+      - name: Documentation links resolve
+        run: node .claude/scripts/check-doc-links.mjs
+
+      # Records in sync with their index rows, four required sections present, index inside its
+      # progressive-loading budget. Without this the catalogue rots within a month.
+      - name: Lessons catalogue
+        run: node .claude/scripts/check-lessons.mjs
+
+      # Checkable factual claims in the docs still hold: spec-file count, the @asls 2.2.0 pin
+      # floor and its .env alignment, the two-import visualizer boundary, public/COPYING shadowing.
+      # An agent trusts a stated fact completely and cannot sense staleness.
+      - name: Documented claims still true
+        run: node .claude/scripts/check-claims.mjs
+
+      # The hooks are guardrails; an unverified guardrail is a guardrail that fails open silently.
+      # Open Mercato keeps input/expected-output fixtures for each of their gate scripts after a
+      # real fail-open regression shipped undetected.
+      - name: Hook self-tests
+        run: node .claude/scripts/test-hooks.mjs
+
+      # Every upstream edit on this branch is logged with a reason. This is CLAUDE.md §2 stated as
+      # a check rather than as a sentence an agent agrees with and then forgets.
+      - name: Upstream divergence ledger
+        if: github.event_name == 'pull_request'
+        run: node .claude/scripts/check-upstream-ledger.mjs --base origin/${{ github.base_ref }}

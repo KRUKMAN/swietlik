@@ -65,8 +65,8 @@ class CueItem extends Proxify {
    *
    * @type {Number}
    */
-  set fadeOut(fadeIn) {
-    this._fadeIn = fadeIn;
+  set fadeOut(fadeOut) {
+    this._fadeOut = fadeOut;
   }
 
   get fadeOut() {

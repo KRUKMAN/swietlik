@@ -223,14 +223,19 @@ class Universe {
    */
   checkPatchCapability(chStart, chCount) {
     const chStop = chStart + chCount;
-    // eslint-disable-next-line consistent-return
-    Object.keys(this._patch).forEach((fixtureAddress) => {
+    if (chStart < 0 || chStop > DMX_UNIVERSE_LENGTH) {
+      return false;
+    }
+    // NOTE: `return false` inside `Array#forEach` used to be a no-op -- it
+    // only returned from that one callback invocation, never from
+    // `checkPatchCapability` itself, so the loop could never short-circuit
+    // and the function unconditionally fell through to `return true`
+    // (docs/swietlik/code-review-2026-09-09.md §2.2). `.every` actually
+    // short-circuits on the first collision.
+    return Object.keys(this._patch).every((fixtureAddress) => {
       const fixture = this._patch[fixtureAddress];
-      if (chStart <= fixture.chStop && fixture.chStart <= chStop) {
-        return false;
-      }
+      return !(chStart < fixture.chStop && fixture.chStart < chStop);
     });
-    return true;
   }
 
   /**

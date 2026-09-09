@@ -156,46 +156,56 @@ describe('CueItem', () => {
   });
 
   describe('fadeIn / fadeOut', () => {
-    // NOTE: the real `fadeOut` setter in cue.item.model.js assigns to
-    // `this._fadeIn` (its parameter is even named `fadeIn`, not `fadeOut` --
-    // see the source), not `this._fadeOut`. The constructor always runs
-    // `this.fadeOut = data.fadeOut` right after `this.fadeIn = data.fadeIn`,
-    // so that second assignment unconditionally clobbers `_fadeIn` with
-    // whatever `data.fadeOut` was (or undefined). `_fadeOut` itself is never
-    // written by anything, so `fadeOut` always reads back as the default.
-    // These tests pin down that real, observable behaviour.
-    it('defaults fadeIn to 0 when neither fadeIn nor fadeOut is provided', () => {
+    // Regression: the `fadeOut` setter used to assign to `this._fadeIn`
+    // (its parameter was even named `fadeIn`, not `fadeOut`), clobbering
+    // whatever `fadeIn` had just been set to and leaving `_fadeOut` (and so
+    // the `fadeOut` getter) permanently unreachable. These tests assert the
+    // corrected behaviour: `fadeIn` and `fadeOut` are independent fields.
+    it('defaults both fadeIn and fadeOut to 0 when neither is provided', () => {
       const item = new CueItem({
         id: 1, cue: fakeCueHandle(), tickStart: 0, tickDuration: 4,
       });
 
       expect(item.fadeIn).toBe(0);
+      expect(item.fadeOut).toBe(0);
     });
 
-    it('an explicit fadeIn is clobbered back to 0 by the constructor\'s fadeOut assignment', () => {
+    it('sets fadeIn from constructor data without touching fadeOut', () => {
       const item = new CueItem({
         id: 1, cue: fakeCueHandle(), tickStart: 0, tickDuration: 4, fadeIn: 250,
       });
 
-      // data.fadeOut is undefined here, and the buggy fadeOut setter
-      // overwrites _fadeIn with it right after fadeIn was set.
+      expect(item.fadeIn).toBe(250);
+      expect(item.fadeOut).toBe(0);
+    });
+
+    it('sets fadeOut from constructor data without clobbering fadeIn', () => {
+      const item = new CueItem({
+        id: 1, cue: fakeCueHandle(), tickStart: 0, tickDuration: 4, fadeOut: 800,
+      });
+
+      expect(item.fadeOut).toBe(800);
       expect(item.fadeIn).toBe(0);
     });
 
-    it('a provided fadeOut value surfaces through the fadeIn getter instead (setter bug)', () => {
-      const item = new CueItem({
-        id: 1, cue: fakeCueHandle(), tickStart: 0, tickDuration: 4, fadeOut: 250,
-      });
-
-      expect(item.fadeIn).toBe(250);
-    });
-
-    it('fadeOut always reads back as the default (0), regardless of input', () => {
+    it('keeps fadeIn and fadeOut independent when both are provided', () => {
       const item = new CueItem({
         id: 1, cue: fakeCueHandle(), tickStart: 0, tickDuration: 4, fadeIn: 100, fadeOut: 250,
       });
 
-      expect(item.fadeOut).toBe(0);
+      expect(item.fadeIn).toBe(100);
+      expect(item.fadeOut).toBe(250);
+    });
+
+    it('round-trips a fadeOut reassignment after construction, independent of fadeIn', () => {
+      const item = new CueItem({
+        id: 1, cue: fakeCueHandle(), tickStart: 0, tickDuration: 4, fadeIn: 100, fadeOut: 250,
+      });
+
+      item.fadeOut = 500;
+
+      expect(item.fadeOut).toBe(500);
+      expect(item.fadeIn).toBe(100);
     });
   });
 });

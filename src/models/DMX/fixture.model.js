@@ -601,6 +601,16 @@ class Fixture extends Proxify {
     return this.chStart + this.channels.length;
   }
 
+  /**
+   * The fixture's channel footprint width in its current mode
+   *
+   * @type {Number}
+   * @readonly
+   */
+  get chCount() {
+    return this.channels.length;
+  }
+
   get highlighted() {
     return this._3DModel.highlighted;
   }
@@ -640,6 +650,9 @@ class Fixture extends Proxify {
    */
   /* eslint-disable max-len */
   setChannel(id, value) {
+    if (!Number.isInteger(id) || id < 0 || id >= this.channels.length) {
+      throw new Error(`Invalid channel id ${id} for fixture ${this.name}`);
+    }
     const channel = this.channels[id]; // Getting channel instance from ID
     if (channel.fineChannels.length > 0) { // Channel has fine capabilities ?
       this.setChannel(channel.fineChannels[0].id - 1, (value % 1) * 255); // Setting fine channel values recursively

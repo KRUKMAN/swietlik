@@ -15,7 +15,7 @@ git diff develop...HEAD --name-status
 
 ---
 
-## Modified upstream files (20)
+## Modified upstream files (23)
 
 ### Root / config
 
@@ -26,6 +26,7 @@ git diff develop...HEAD --name-status
 | `.env` | `WSC_VERSION` `2.2.0-rc.6` → `2.2.0`, aligning the Electron prebuild download with the bumped `@asls/wsc-*` packages. |
 | `index.html` | Tab title → `Świetlik`; favicon repointed to `/images/swietlik_logo.svg`. |
 | `.eslintrc.js` | Resolver settings so `lint:ci` reaches 0 errors: ignore `?worker`/`?raw` Vite query imports in `import/no-unresolved`, add three's extensionless `three/examples/jsm/*` paths to `import/core-modules`, add a node resolver fallback. |
+| `.gitignore` | One added line: `.vite-start.log`, the dev-server log written when Vite is started in the background. (Logged retroactively — found by `.claude/scripts/check-upstream-ledger.mjs` on its first run.) |
 
 ### Documentation / attribution
 
@@ -50,7 +51,10 @@ git diff develop...HEAD --name-status
 
 | File | Reason |
 | --- | --- |
-| `src/models/DMX/show.model.js` | localStorage key migration: writes `SWIETLIK_SHOWFILE`, falls back to reading upstream's `ASLS_STUDIO_SHOWFILE` so existing autosaves on `localhost:5173` still load. **The only runtime model file this fork has touched.** |
+| `src/models/DMX/show.model.js` | localStorage key migration: writes `SWIETLIK_SHOWFILE`, falls back to reading upstream's `ASLS_STUDIO_SHOWFILE` so existing autosaves on `localhost:5173` still load. Also: `loadFromLocalStorage` now treats an empty/whitespace-only value as absent (was `??`, which never falls through on `''`) and wraps the parse+load in try/catch that returns `false` instead of throwing uncaught — fixes code-review-2026-09-09.md §1.1/§5.1 (app hangs on load). |
+| `src/models/DMX/universe.model.js` | `checkPatchCapability` rewritten from a dead `Array#forEach` (`return false` inside it was a no-op, so the function always returned `true` and patch-collision detection never fired) to a short-circuiting `.every`, plus an explicit 512-address range check — fixes code-review-2026-09-09.md §2.2/§5.2. |
+| `src/models/DMX/fixture.model.js` (incl. `chCount` getter) | `setChannel` now throws a descriptive `Invalid channel id ${id} for fixture ${this.name}` error for an out-of-range/non-integer channel id instead of an opaque `TypeError` from indexing `undefined` — fixes code-review-2026-09-09.md §2.3/§5.3. |
+| `src/models/DMX/cue.item.model.js` | `fadeOut` setter fixed to assign `this._fadeOut` (it was assigning `this._fadeIn`, clobbering `fadeIn` and making `fadeOut` permanently unreadable) — fixes code-review-2026-09-09.md §2.1/§5.5. |
 | `src/views/activities/app/_popups/popup.splash.vue` | Branding: Świetlik wordmark, release/branch links repointed to `KRUKMAN/swietlik`, copyright line reworked to `KRUKMAN © 2026 · based on ASLS Studio © ASLS-org 2021–2026`. |
 | `src/views/activities/app/fragments/toolbar/toolbar.fragment.vue` | Branding: added a persistent `KRUKMAN © 2026 · based on ASLS Studio` toolbar strip (attribution surface); Manual/Contact menu links repointed to this repo and `github.com/KRUKMAN`. |
 | `src/views/activities/app/fragments/toolbar/_popups/popup.newshow.vue` | Branding: template entry `ASLS Demo` → `Demo Show`. |
