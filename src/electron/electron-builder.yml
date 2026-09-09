@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: ASLS Studio
+appId: digital.rundown.swietlik
+productName: Świetlik
 directories:
   buildResources:  public
 files:
@@ -16,7 +16,7 @@ extraResources:
 # asarUnpack:
 #   - resources/**
 win:
-  executableName: ASLS Studio
+  executableName: Swietlik
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

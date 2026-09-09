@@ -15,7 +15,7 @@ import {
 import path from 'path';
 import { spawn } from 'child_process';
 import os from 'node:os';
-import icon from '../assets/images/studio_standalone_logo.svg';
+import icon from '../assets/images/swietlik_standalone_logo.svg';
 
 console.log('MAIN PROCESS STARTED');
 

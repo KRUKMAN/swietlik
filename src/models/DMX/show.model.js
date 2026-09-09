@@ -16,7 +16,10 @@ import FixturePool from './fixture.pool.model';
 import Live from './live.model';
 import OutputPool from './output.pool.model';
 
-const LOCALSTORAGE_SHOWFILE_KEY = 'ASLS_STUDIO_SHOWFILE';
+const LOCALSTORAGE_SHOWFILE_KEY = 'SWIETLIK_SHOWFILE';
+// Świetlik fork: read-migrate autosaves written by upstream ASLS Studio,
+// which shares this localStorage origin on localhost:5173.
+const LEGACY_LOCALSTORAGE_SHOWFILE_KEY = 'ASLS_STUDIO_SHOWFILE';
 const DEFAULT_PROJECT_NAME = 'new_project.asls';
 const DEFAULT_BPM_VALUE = 120;
 
@@ -329,7 +332,10 @@ class Show extends EventEmitter {
    * @public
    */
   async loadFromLocalStorage() {
-    const ls_showdata = localStorage.getItem(LOCALSTORAGE_SHOWFILE_KEY);
+    // Falls back to the upstream ASLS Studio key so existing autosaves still load.
+    // The legacy key is never written to nor removed.
+    const ls_showdata = localStorage.getItem(LOCALSTORAGE_SHOWFILE_KEY)
+      ?? localStorage.getItem(LEGACY_LOCALSTORAGE_SHOWFILE_KEY);
     if (ls_showdata != null) {
       await this.loadFromData(JSON.parse(ls_showdata));
       return true;

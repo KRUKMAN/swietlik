@@ -1,6 +1,9 @@
 {
-  "name": "asls_studio",
-  "author": "Timé Kadel",
+  "name": "swietlik",
+  "author": "Jakub (KRUKMAN)",
+  "contributors": [
+    "Timé Kadel (original ASLS Studio author)"
+  ],
   "version": "0.1.0",
   "private": true,
   "main": "./out/main/main.js",
@@ -8,6 +11,9 @@
     "start": "vite",
     "build": "vite build",
     "lint": "eslint --ext .js,.vue --ignore-path .gitignore --fix src",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "lint:ci": "eslint --ext .js,.vue --ignore-path .gitignore src",
     "docs:build": "npm run docs:manual:build & npm run docs:dev:ui:build & npm run docs:dev:core:build",
     "docs:dev:core:build": "docma --config ./docs/developer/core/docma.json",
     "docs:dev:core:serve": "docma --config ./docs/developer/core/docma.json && docma serve ./docs/developer/core/dist",
@@ -97,30 +103,5 @@
       }
     ],
     "beforePack": "./src/electron/prebuild.js"
-  },
-  "release": {
-    "branches": [
-      "master",
-      {
-        "name": "staging",
-        "prerelease": "rc"
-      }
-    ],
-    "dryRun": false,
-    "ci": true,
-    "plugins": [
-      "@semantic-release/commit-analyzer",
-      "@semantic-release/release-notes-generator",
-      [
-        "@semantic-release/github",
-        {
-          "successComment": false,
-          "failComment": false,
-          "failTitle": false,
-          "labels": false,
-          "releasedLabels": false
-        }
-      ]
-    ]
   }
 }
