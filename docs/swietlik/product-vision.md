@@ -20,6 +20,10 @@
 
 **Phase** — `P2` stage builder · `P3` rendering · `P4` layered UX · `P1+` needs MCP
 surface extension · `post-v1` after first real client use.
+`P2-parallel` means **do it now, alongside Phase 2, don't wait for P4** — used only
+for the playback-feel work in §3, which the owner's first session showed cannot
+wait. `P4 (pull forward)` / `P4 (first)` likewise mark Phase 4 items that the
+session moved ahead of most of Phase 2. See §2 for why.
 
 **Build** — `crisp` = spec-able and unit-testable today, no unknowns.
 `research-y` = needs a throwaway spike before anyone estimates it.
@@ -34,8 +38,18 @@ cannot see and edit.** Simple mode is a lens, never a separate data model.
 
 ## 1. The positioning bet (read this before the feature lists)
 
-Three bets, ranked by how much they change the product:
+Four bets, ranked by how much they change the product. **Bet 0 was added after
+the owner's first hands-on session (§2) and it outranks the other three** — the
+other three are about *who the product is for*; bet 0 is about whether it is worth
+using at all.
 
+0. **It has to feel like an instrument, not a renderer.** Jake's words —
+   *"a responsive stage in front of you, not a delayed computed visualisation"* —
+   are the best one-line spec of this product anyone has written. Everything
+   downstream depends on it: an AI that generates looks is worthless if recalling
+   one snaps ugly; a timeline is worthless if the transport lies to you; a
+   beautiful render nobody enjoys touching gets opened once. **Fix playback feel
+   (§3) before building anything new.**
 1. **Świetlik's fastest route to credibility with working LDs is being a great
    *visualizer*, not a great console.** MA3, Avolites and MagicQ have thirty
    years of muscle memory behind their programmer. Nobody will relearn that in a
@@ -43,17 +57,19 @@ Three bets, ranked by how much they change the product:
    own console at, that opens in a browser, that costs less than Depence R4's
    €2,395-per-module Windows-only licence, and that their client can look at
    without installing anything. **Art-Net/sACN input + MVR/GDTF import are worth
-   more for LD adoption than any programming feature we could build** (§6.1,
-   §6.2).
+   more for LD adoption than any programming feature we could build** (§11.1,
+   §11.2).
 2. **Świetlik's fastest route to Jake using it weekly is the client-facing
    deliverable, not the rig.** An events agency does not get paid for a patch
    sheet; it gets paid for winning the pitch and surviving the site visit. So:
    render, MP4, shareable read-only link, kit list, power/weight sanity check
-   (§6.3–§6.6).
+   (§11.3–§11.6). And the deliverable is only convincing if the stage is *occupied*
+   — band, backline, PA, haze in the air (§6.9, §6.10). An empty room full of
+   beams is a lighting diagram; a room with a band in it is the event.
 3. **"Claude as co-designer" is the genuine differentiator and it is strongest at
    the boring end.** Natural-language look generation demos well. *Fixture
    substitution, show doctoring and paperwork generation* are what make it
-   indispensable (§4). Build the boring ones first; they are also the ones with
+   indispensable (§9). Build the boring ones first; they are also the ones with
    verifiable correct answers, which means they are testable.
 
 Corollary to (3), and the most important architectural opinion in this document:
@@ -66,7 +82,361 @@ builder feature, not in a catch-up phase.
 
 ---
 
-## 2. Stage builder end state
+## 2. Owner feedback — first hands-on session (2026-09-09)
+
+Jake sat down with the current app and came back with three findings, filed as
+issues **#2** and **#3** in `KRUKMAN/swietlik`. I've weighted them above my own
+priors, and they've moved the sequencing in this document. My verdict on each:
+
+| # | What he hit | My verdict | Where it's addressed |
+| --- | --- | --- | --- |
+| 1 | **Playback doesn't feel live.** Stopping a playing group freezes, then cuts to black. Restarting begins from scratch. He wants "a responsive stage in front of you", not "a delayed computed visualisation". | **He's right, it's a real defect, and it's three defects wearing one coat.** I can point at the exact lines. Fixing this is worth more than any new feature in this document. | **§3** (new headline section) |
+| 2 | **"I hate the UI."** Group Pool is acceptable; adding or editing anything is "crazy non intuitive". There is **no discoverable interface** for authoring the automation the demo show performs. | **Right, and the second half is the serious one.** The domain model can express the demo show's automation; the UI gives you no path to author it. That's not a polish problem, it's a missing surface. | **§4** (new headline section) |
+| 3 | **No way to resize or rearrange panels/windows.** | Right. Table stakes, and its absence signals "unfinished" faster than any missing feature does. | **§5** (new headline section) |
+
+**Sequencing consequence — this is the part that changes the roadmap.** The
+roadmap runs P2 stage builder → P3 rendering → P4 UX. Jake's session says that
+ordering is wrong. **Playback feel (§3), the layout shell (§5.1) and the timeline
+(§4.1) should be pulled forward, ahead of most of the stage builder.** The
+reasoning is simple: he could not get value out of the app he already has, and no
+amount of truss geometry fixes that. A tool that feels like an instrument with a
+plain rig beats a tool with a beautiful rig that feels like a form.
+
+I'd also read finding #1 as the sharpest product insight in the whole engagement.
+"Responsive stage, not delayed computed visualisation" is a better articulation of
+what previz is *for* than anything currently written in the roadmap — and it is
+exactly the quality that separates the tools LDs love from the ones they tolerate.
+
+---
+
+## 3. Playback feel and transport semantics
+
+**The single highest-priority item in this document.** Everything else here is
+features; this is whether the thing feels alive.
+
+### 3.1 Diagnosis — what is actually happening
+
+Three separate defects, all currently reaching the user as one bad feeling:
+
+1. **There is no release fade. At all.** `Chase.cue(false)`
+   (`src/models/DMX/chase.model.js`) does this on stop:
+
+   ```js
+   this.elapsed = 0;
+   this.cues.forEach((cueItemPool) => {
+     cueItemPool.cue.state = 0;
+     cueItemPool.cue.cue(false);
+   });
+   Live.remove(this.animationId);
+   ```
+
+   Elapsed is zeroed, every cue is snapped to state 0, and the animation is torn
+   out of the `Live` loop in the same tick. There is no fade-out path anywhere in
+   that call — the hard cut to black is not a bug in the fade, it is the *absence
+   of the concept*. **This is defect #1 and it is the entire "cuts to black"
+   complaint.**
+
+2. **Restart always rewinds.** `Chase.cue(true)` sets `elapsed = 0` and
+   `deltaStart = null`, so a chase can only ever re-enter from bar one. There is
+   no notion of retaining phase. **Defect #2 — "restarting begins from scratch".**
+
+3. **The start is silently deferred.** Chases register with
+   `Live.add(fn, this.quantize, 60, onReadyCallback)` and `Live` holds them until
+   the next quantize boundary (`QUANTIZATION_TOLERANCE`, `live.model.js`).
+   Musically that is *correct* console behaviour — but with no visual indication
+   that a playback is armed and waiting, and at slow tempi, it reads as lag.
+   **Defect #3, and it is the direct cause of the "delayed computed
+   visualisation" sensation.**
+
+The encouraging part: **the codebase already contains the correct pattern.**
+`Live` itself does phase-preserving pause properly, with `pauseStartTime` /
+`pauseTimeOffset`. The global transport is right; the per-playback transport never
+got the same treatment. This is a completion job, not an invention job.
+
+### 3.2 What each transport verb should mean — **MUST** · P2-parallel · crisp
+
+Six verbs. Borrowed from MA's Off Time, Eos's release/assert, Hog and MagicQ
+release times, and Logic's distinction between *stop* and *pause*. Stated so a
+non-LD can operate them:
+
+| Verb | Plain-English label | Behaviour | Default |
+| --- | --- | --- | --- |
+| **GO** | *Go* | Start or advance. Content fades in over the incoming fade time. If quantized, the button **arms and pulses**, then fires on the boundary. | fade 2 s |
+| **Pause** | *Freeze* | Time stops; **levels hold exactly where they are.** Nothing goes dark. This is Logic's stop-in-place. | — |
+| **Resume** | *Continue* | Carries on from the frozen phase. With a tempo map, re-enters on the next musical boundary rather than mid-beat. | continue |
+| **Release / Off** | *Let go* | Hands control back, fading out over a **release time** to whatever the next-priority source says (usually out). **Never a cut.** | 2 s |
+| **Stop all** | *Clear the stage* | Release everything, using the global release time. | 3 s |
+| **Blackout** | *Blackout* | Instant. The **only** verb allowed to be instantaneous — that is its entire job. Separate, loud, visibly latched. | 0 s |
+
+The distinction Jake hit is exactly this: **Pause holds, Release fades, Blackout
+cuts.** Today all three collapse into "cut to black", which is why the app feels
+computational rather than physical. Real lights have thermal and mechanical
+inertia; a virtual stage that snaps to zero reads as a spreadsheet.
+
+- **Simple:** three buttons — *Go*, *Freeze*, *Let go* — plus a big Blackout, and
+  one slider labelled **"How fast things fade when you stop them"**, defaulting to
+  2 s. That slider *is* the release-time concept, and it will be the first control
+  a non-LD reaches for once they understand what it does.
+- **Pro:** per-playback release time and **release mask** (which attributes release
+  and which hold — the MA/Eos concept), out-fade vs out-delay, priority and
+  HTP/LTP resolution so a release lands on the underlying state rather than on
+  zero, and an assert/steal control.
+- **Build:** crisp. A release envelope on `Cue`/`Chase` plus an out-time on the
+  existing `Fade` model. **Testable at the model layer with fake timers in the
+  current Vitest harness** — write those tests, because playback feel regresses
+  silently and no screenshot catches it.
+
+### 3.3 Resume-from-position and musically sane re-entry — **MUST** · P2-parallel · crisp
+
+One-line: stopping and restarting a running effect must not throw away where it
+was.
+
+Three per-playback restart modes behind a single three-way control:
+
+| Mode | Behaviour | Right default for |
+| --- | --- | --- |
+| **Continue** | Retain phase; re-enter exactly where it left off | **Looping chases and effects** — this is what "responsive stage" means |
+| **Next boundary** | Retain phase, but re-enter on the next beat/bar so it lands in time | Anything running against a tempo map (§11.9) |
+| **From the top** | Rewind to zero | **Cue stacks** — a running order is meant to run in order |
+
+The implementation is small: retain `elapsed` and reconstruct
+`deltaStart = now - elapsed` on re-entry instead of nulling it. `Live` already
+proves the pattern works in this codebase.
+
+- **Simple:** invisible — the sensible default per playback type, with a single
+  "Restart from the beginning" checkbox in the inspector for the day someone
+  wants it.
+- **Pro:** the three-way control, plus a phase-offset nudge and "sync to playhead"
+  for timeline work.
+
+### 3.4 Immediate acknowledgement — the one-frame rule — **MUST** · P2-parallel · crisp
+
+One-line: **a user gesture must produce a visible change within one frame; musical
+alignment applies to the content, not to the acknowledgement.**
+
+This is the rule that resolves defect #3 without throwing away quantization. Press
+a busking tile: the tile lights *immediately* and pulses in tempo while armed; the
+look lands on the beat. Today the tile does nothing until the boundary arrives, so
+the app feels like it did not hear you.
+
+Corollaries — all cheap, all mandatory:
+
+- Quantize becomes a **visible** per-playback control (`off / beat / bar / 2 bars`),
+  defaulting to **off** in simple mode — immediate *is* responsive — and to `1 bar`
+  once a tempo map exists.
+- An armed-but-not-yet-fired playback gets its own visual state (pulsing outline).
+  Nothing may ever be silently pending.
+- Faders, wheels, colour pickers and intensity keys **bypass quantization
+  entirely. Live parameter control is never quantized.** That is the difference
+  between an instrument and a render queue.
+- Never block the render loop on a mutation. Anything slow gets an optimistic
+  visual response and reconciles afterwards.
+
+### 3.5 Crossfade by default, not snap — **MUST** · P4 · crisp
+
+One-line: recalling look B while look A is up should *dissolve* over B's fade
+time, not cut.
+
+Non-LDs expect this (it is how every consumer app transitions) and LDs demand it.
+It also makes AI look-iteration (§9.5) feel like design rather than like a page
+reload. Pair it with:
+
+- **A manual crossfade fader** — grab it and scrub the transition by hand. The
+  most satisfying control on any console and nearly free to build.
+- **A global rate / size master** — scale every running effect at once (MagicQ's
+  fader-controls-FX trick, §7.6). This is *the* busking move.
+- **Fade time as a visible per-look property**, named rather than numeric in
+  simple mode: *Snap / Fast 0.5 s / Normal 2 s / Slow 5 s / Very slow 15 s*.
+
+### 3.6 What I would *not* do here — **KILL**
+
+- **Detailed fixture mechanical inertia** (pan/tilt acceleration curves,
+  colour-wheel spin-up, lamp thermal decay). Real, tempting, and a rabbit hole
+  that makes the previz *less* controllable. A single global "movement smoothing"
+  easing on pan/tilt buys 90 % of the feel for 1 % of the work. Do that instead.
+- **Frame-accurate timecode-locked playback.** Different product (§7.2).
+- **Making Blackout fade.** It is the panic button. It cuts. Leave it alone.
+
+---
+
+## 4. The programming surface — timeline, automation lanes, presets
+
+Jake's sharpest UI finding was not "it's ugly". It was *"there is no discoverable
+interface for programming the automation the demo show performs."* That is correct
+and it is the most serious gap in the product. The domain model already expresses
+everything the demo does — FX with per-channel waveform, frequency, amplitude and
+per-fixture phase; chases with cue items and fades. The **authoring surface for it
+does not exist** outside a deep modifier pane you have to already know about. You
+cannot ask a user to discover an editor that has no front door.
+
+### 4.1 A show timeline with automation lanes — **MUST, headline** · P4 (pull forward) · crisp
+
+One-line: a Logic-style multitrack timeline where **tracks are groups**, **regions
+are looks/effects/chases**, and **automation lanes underneath hold editable
+parameter curves**.
+
+Logic is the right thing to steal from because its metaphor maps onto lighting
+almost perfectly:
+
+| Logic | Świetlik | Note |
+| --- | --- | --- |
+| Track list, one per instrument | One track per **group**; drill in for positions, then fixtures | Groups are already the domain's selection unit (§7.4) |
+| Regions on a track | A **look**, **effect** or **chase** with a start, a length and draggable edges | Drag edge = duration, drag body = move, Alt-drag = copy. Universally understood. |
+| **Automation lanes** under a track | `Intensity / Pan / Tilt / Colour / Zoom / Focus` lanes with breakpoint curves | **This is the direct answer to Jake's complaint.** Disclosure triangle → the automation is right there, visible and editable. |
+| Bars/beats vs. time ruler | Same toggle | Essential — corporate work thinks in minutes, band work in bars |
+| Playhead, cycle region, markers | Same, with markers as song sections | Feeds §11.9's audio timeline directly |
+| Snap / grid | Snap to beat, bar or second | — |
+
+Two things already in the repo are the seed and should be **promoted rather than
+rebuilt**: `chase.modifier.widget.timeline.vue` is a single-chase timeline that
+wants to become a show-level multitrack view, and `modifier.widget.curve.vue` /
+`group.scene.modifier.widget.curve.vue` are already breakpoint-curve editors — the
+right primitive, in the wrong place, behind the wrong door.
+
+- **Simple:** one **Show** track. Drag looks onto it in order; it reads like a
+  video editor's storyboard with thumbnails. Automation lanes exist but stay
+  collapsed and unmentioned — a beginner never needs to open one.
+- **Pro:** full multitrack, per-group automation lanes, per-fixture drill-down,
+  curve shapes (linear / ease / S-curve / step / hold), copy-paste of automation
+  between tracks, and **the effects engine writing into lanes** so a generated
+  effect can be hand-edited afterwards. That last point matters enormously: an
+  effect you can convert to curves is an effect you can fix.
+- **Build:** crisp, but it is the largest single UI item in this document. Scope
+  v1 to: track list generated from groups, regions with drag/resize/copy, one lane
+  type (intensity), playhead and snap. Add lane types incrementally.
+
+**State this explicitly so it does not get built twice: the timeline and the cue
+stack (§7.7) are two views of the same data.** A cue stack is a timeline whose
+regions are butted end-to-end and advanced by GO instead of by a clock. One model,
+two presentations, switchable per show. Building them as separate systems is the
+most likely expensive mistake in Phase 4.
+
+### 4.2 Presets as a visible, hover-previewable pool — **MUST** · P4 · crisp
+
+One-line: Lightroom's Presets panel, for palettes, looks and effects.
+
+Lightroom solved exactly this problem for exactly this user: a named, grouped list
+down one side; **hover to preview the result live**; click to commit;
+`Create preset from current` permanently at the top. Non-professionals already know
+this interaction, and it turns "browsing presets" into a visual conversation
+instead of a guessing game.
+
+Steal specifically:
+
+- **Hover-preview in the viewport.** The best single interaction to lift in this
+  entire document. Hover a look, see it on stage; move away, it restores. It makes
+  a library of forty looks explorable in fifteen seconds.
+- **Folders with user naming**, plus a favourites star.
+- **`Create from current` always visible.** The reason nobody can find "how do I
+  make a preset" in most tools is that the create affordance lives somewhere else.
+- **An amount/strength slider on apply** — push the selection 50 % of the way
+  toward a colour palette rather than all the way. Lightroom's preset-amount
+  slider, and a genuinely novel and useful idea in a lighting context.
+
+This is the UI for §7.3 (palettes) and §7.5 (looks).
+
+### 4.3 Discoverability rules — **MUST** · P4 · crisp
+
+The root cause of "adding/editing anything is crazy non intuitive" is not any one
+control, it is the absence of consistent affordances. Six rules to hold the P4 work
+to, all testable by watching one person use the app for ten minutes:
+
+1. **Every pool has one obvious `+`; every object has one obvious inspector.**
+   Nothing important may require knowing about a small icon in a corner.
+2. **Empty states teach.** An empty group pool should read *"No groups yet —
+   [Create from selection] · [Auto-generate from the rig]"*, never be blank. Empty
+   states are the cheapest onboarding in software and this app currently has none.
+3. **Right-click everywhere**, exposing the same verbs as the toolbar.
+4. **Direct manipulation first.** Drag a look onto the timeline; a fixture onto a
+   group; a colour onto a selection. If the *only* route to something is a modal
+   dialog, the design is wrong.
+5. **A persistent "what am I editing" breadcrumb.** The router-driven modifier
+   panes swap context invisibly today, which is disorienting even once you know
+   the app.
+6. **Undo everywhere, labelled and visible** — with `Ctrl+Z` actually bound to it
+   (§8.2). Reversibility is what gives a beginner permission to experiment, and
+   permission to experiment is this app's most-needed feature.
+
+### 4.4 A demo show that explains itself — **STRONG** · P4 · crisp
+
+One-line: click anything moving in the demo, land on the thing that made it move.
+
+Jake's complaint literally began with the demo doing things he could not author.
+Turn that into the tutorial: every element in the shipped demo named, reachable and
+annotated, with a **"How was this made?"** button that selects the driving
+effect/cue and opens its editor. Cheap to build, and it converts the demo from a
+source of frustration into the best onboarding asset in the product.
+
+---
+
+## 5. Workspace, layout and the UI shell
+
+> Finding #3: *"no way to change or resize panels/windows."*
+
+Correct, and it is the finding with the shortest path to done. The roadmap already
+says Phase 4 is where "upstream's UI assumptions get genuinely reconsidered" —
+Jake's session is the evidence that **a layout shell should be the first P4
+deliverable**. It is additive (a new shell hosting the existing fragments) and it
+unblocks everything in §4.
+
+### 5.1 Resizable, dockable panels with saved workspaces — **MUST** · P4 (first) · crisp
+
+One-line: drag any panel edge; rearrange panels into docking zones; save the
+arrangement as a named workspace.
+
+- **Simple:** four **modes as tabs across the top — `Build · Look · Show ·
+  Present`** — each a curated, fixed layout. This is Lightroom's module switcher,
+  and for a non-LD it is strictly better than freeform docking: you cannot get
+  lost, and the app teaches you the phases of the job just by existing. Panel edges
+  are still draggable within a mode.
+- **Pro:** real docking (drag a panel to a zone, tab panels together, tear one
+  off), user-named workspaces, and **`Alt+1`–`Alt+9` to recall a whole layout** —
+  Logic's screensets, one of the best power-user features ever shipped. (`Alt`
+  because bare digits are group selection, §8.4.)
+- **Build:** crisp and known-shape — splitters, a persisted layout tree, a
+  slot-based shell. Sizes persist per workspace, per show.
+- **KILL: free-floating MDI windows.** Docking zones only. Free windows get lost
+  off-screen, break when monitors change, and generate support load forever.
+
+### 5.2 Presentation mode — **MUST** · P4 · crisp
+
+One-line: `F11` (or `Shift+V`) and the viewport is the whole screen, chrome gone.
+
+You will show this to clients on a large screen constantly, and a previz tool that
+cannot get out of its own way for that is embarrassing in the room. Minimal
+overlay: look name, next/previous, nothing else.
+
+### 5.3 Detachable visualizer window — **STRONG** · post-v1 · crisp
+
+One-line: the 3D view on the second monitor, controls on the laptop.
+
+Standard working posture for anyone doing this seriously. The seed exists —
+`src/views/activities/visualizer/visualizer.activity.vue` is already a separate
+route — but `createMemoryHistory()` blocks the popout. Same blocker as §11.3's
+shareable link, which is an argument for answering the router question once,
+properly, rather than twice.
+
+### 5.4 Visual design direction — **STRONG** · P4 · research-y
+
+Not a feature list, a stance — since "I hate the UI" is partly aesthetic:
+
+- **Keep it dark.** Every tool in this domain is dark because operators work in
+  dark rooms and because a bright UI destroys your read of the render next to it.
+  Do not light-mode this app.
+- **Let the render be the brightest thing on screen.** Chrome should recede to
+  near-monochrome so the only saturated colour in the window is the stage. Amateur
+  lighting UIs fail exactly here — coloured buttons competing with the viewport.
+- **Density is a setting**, comfortable by default. Pros want compact; a beginner
+  drowning in 11 px labels quits.
+- **One accent colour, used only for "this is live".** In a tool where things play
+  back, *what is running right now* must be unmissable and must never compete with
+  decoration.
+- **A single spacing and type scale** applied across the existing UI kit will do
+  more perceived-quality work than any individual screen redesign.
+
+---
+
+## 6. Stage builder end state
 
 **Target:** a non-LD goes from empty app to a venue a client recognises, with a
 believable rig in it, in **under ten minutes**, having never typed a DMX address.
@@ -75,7 +445,7 @@ Today: a 50 × 50 m checkerboard `BoxGeometry` floor and an infinite grid helper
 (`visualizer.js` ~L254–300), fixtures placed by numeric field or `TransformControls`
 gizmo. There is no room, no truss, no hang-position concept.
 
-### 2.1 Venue templates — **MUST** · P2 · crisp
+### 6.1 Venue templates — **MUST** · P2 · crisp
 
 One-line: pick `club / ballroom / theatre / festival stage / outdoor / white box`,
 get a parameterised room with correct-feeling dimensions, trim heights, stage
@@ -100,7 +470,7 @@ checkerboard, at near-zero rendering cost.
   `src/models/stage/`), serialised into `.asls` as an *additive* key so old
   showfiles still load. Do not touch the existing DMX model tree.
 
-### 2.2 Hang positions as the core abstraction — **MUST** · P2 · crisp
+### 6.2 Hang positions as the core abstraction — **MUST** · P2 · crisp
 
 One-line: fixtures attach to a named *position* (truss, boom, ladder, floor, set,
 tower), and the position owns the transform — move the truss, the lights come
@@ -128,7 +498,7 @@ common note a designer gets on site.
   correctly treats as sacred. Flag: one spike to confirm instanced-matrix update
   cost at ~200 fixtures.
 
-### 2.3 Truss assembly — **MUST** · P2 · crisp
+### 6.3 Truss assembly — **MUST** · P2 · crisp
 
 One-line: draw truss like you draw a line — click start, click end, get a span
 with correct section type, length rounded to real stock lengths, and legal corner
@@ -141,7 +511,7 @@ blocks where spans meet.
 - **Pro:** section library (250/300/400/520 mm, triangular/square, ladder, pre-rig),
   real stock lengths (0.5/1/1.5/2/2.5/3/4 m) with the leftover shown so the rig is
   *buildable*, corner block types, hoist/motor points with chain drawn up to the
-  ceiling, span-between-points loading readout (§6.5), sub-hung secondary truss.
+  ceiling, span-between-points loading readout (§11.5), sub-hung secondary truss.
 - **Steal from:** Capture's and Vectorworks' *click-click-done* line tool with
   live numeric readout in the cursor (length and angle follow the mouse, and you
   can type the length mid-drag to commit exactly). That "type to override the
@@ -151,7 +521,7 @@ blocks where spans meet.
   Keep the rendered truss as cheap instanced chord/diagonal geometry; resist the
   urge to import manufacturer CAD until P3.
 
-### 2.4 Drag-and-drop fixture placement with auto-patch — **MUST** · P2 · crisp
+### 6.4 Drag-and-drop fixture placement with auto-patch — **MUST** · P2 · crisp
 
 One-line: drag a fixture type from the library onto a truss; it snaps to the
 nearest legal hang point, gets a DMX address, and appears in the patch — no
@@ -177,13 +547,13 @@ Already named in the roadmap; I'd sharpen it:
   venue tech asks.
 - **Pro:** the full patch bay that exists today, plus universe/offset override on
   drop, a re-patch tool with preview-before-apply, and an "export addresses"
-  path (§6.4).
+  path (§10.4).
 - **Buildability:** crisp. `findChStartAutoPatch` already exists and the Phase 1
   `patch_fixture` composite already owns the two-step OFL→`addRaw`→`patchFixture`
   dance. Auto-patch-on-drop is mostly a policy object over that. Unit-testable
   exhaustively, which is rare and valuable — write those tests.
 
-### 2.5 LED walls as first-class emissive surfaces — **MUST** · P2/P3 · crisp→research-y
+### 6.5 LED walls as first-class emissive surfaces — **MUST** · P2/P3 · crisp→research-y
 
 One-line: a wall/panel object defined in *panels* (e.g. 12 × 7 of 500 × 500 mm),
 carrying content, that lights the room.
@@ -206,7 +576,7 @@ rectangle will lose every pitch. This ranks above gobo projection for his work.
   research-y (one spike: average-colour area light vs. a handful of sampled
   point lights vs. baked irradiance).
 
-### 2.6 Drape, decks and set — **STRONG** · P2 · crisp
+### 6.6 Drape, decks and set — **STRONG** · P2 · crisp
 
 One-line: soft goods (black serge, wool, sharkstooth, starcloth), risers/decks at
 real heights, and simple set blocks — the things that make a room read as *this*
@@ -227,7 +597,7 @@ the builder, not the renderer.
 - **Buildability:** crisp for flats and boxes; fullness/folds is a shader or a
   pre-made geometry variant — do the geometry variant, not a cloth sim.
 
-### 2.7 Parametric rig templates ("the obvious festival rig") — **STRONG** · P2 · crisp
+### 6.7 Parametric rig templates ("the obvious festival rig") — **STRONG** · P2 · crisp
 
 One-line: one click produces a complete, conventional, *sane* rig for the chosen
 venue template — FOH truss, mid truss, upstage truss, floor package — correctly
@@ -235,7 +605,7 @@ counted and addressed.
 
 Blank-page paralysis is the real failure mode for a non-LD. Giving Jake a
 defensible starting rig he then edits is worth more than any number of individual
-placement tools. This is also the best possible input to §4.2 (Claude suggesting
+placement tools. This is also the best possible input to §9.2 (Claude suggesting
 rigs) — the AI picks and parameterises a template rather than inventing geometry
 from nothing, which is both better and far more testable.
 
@@ -247,7 +617,7 @@ from nothing, which is both better and far more testable.
   a generator, and it will do more for first-run experience than a month of
   gizmo polish.
 
-### 2.8 2D plan/section view alongside 3D — **STRONG** · P2/P4 · crisp
+### 6.8 2D plan/section view alongside 3D — **STRONG** · P2/P4 · crisp
 
 One-line: an orthographic top-down (and front) view with snapping, because
 **nobody can place objects accurately in a perspective viewport**.
@@ -260,18 +630,123 @@ gizmo is.
 - **Simple:** a "Top view" button that locks the camera to plan and turns on grid
   snap. That alone fixes 80 % of the problem.
 - **Pro:** true ortho plan/front/side with dimensions, a measure tool, layer
-  visibility, and eventually a printable plot (§6.3).
+  visibility, and eventually a printable plot (§10.3).
 - **Buildability:** crisp (an ortho camera and a snap mode). Printable plot is a
   separate, larger item.
 
-### 2.9 What else to steal, interaction-wise
+### 6.9 Stage population — band, instruments, backline and PA — **MUST** · P2 · crisp
+
+> *Owner directive, 2026-09-09: "we need the ability to generate band
+> visualisations — 3D models of humans and instruments in the scene alongside
+> speakers, trusses etc."* Agreed, and I'd rank it higher than the roadmap
+> currently implies. This promotes what was going to be a §10 "silhouettes for
+> scale" nicety into a first-class builder feature.
+
+One-line: a **Stage Plot** object — drummer behind a kit, bass and guitar at their
+mic positions, keys, horns, a DJ booth, backline amps, wedges, side-fill, and a
+flown or ground-stacked PA — placed as one preset and then nudged.
+
+Why this is a MUST and not decoration:
+
+1. **It's what the client is actually looking at.** A render of an empty stage
+   with beams on it is a lighting diagram. The same render with a five-piece band,
+   a drum riser, backline and PA hanging where PA actually hangs is *a photograph
+   of their event*. For an agency pitching, that gap is the whole deliverable.
+2. **It makes the lighting correct, not just pretty.** You cannot judge whether
+   faces are lit, whether the drummer is sitting in a hole, whether the
+   guitarist's backlight is blinding row one, or whether the PA hang is eating the
+   SL tower's beam path — without bodies and boxes in the room. Half the notes an
+   LD gets on site are about occlusion by things that are not lights.
+3. **It's the target set for auto-focus.** §9.4 aims fixtures at semantic targets.
+   "Point these four at the drummer" needs a drummer to exist as an object with a
+   head height. Stage population and position palettes are the same feature seen
+   from two ends — build them together.
+
+- **Simple:** a **Band preset** picker — `Solo artist / Duo / 4-piece / 5-piece /
+  8-piece with horns / DJ / Orchestra / Panel (4 chairs) / Lectern + presenter /
+  Awards (host + winner)`. Pick one, it lands on the stage laid out sensibly, drag
+  to adjust. Each performer arrives as a posed figure with their instrument, mic
+  stand and wedge already attached. One `PA: flown / ground-stacked / none` toggle
+  and one `backline: yes/no`.
+- **Pro:** individual placement of every element; performer height, facing and
+  posed variant (standing / seated / at-mic / at-kit); real kit geometry (riser
+  size, keyboard stand, amp stacks); PA as a proper array with box count, splay
+  and trim, plus a **coverage cone** so you can see what it blocks; and mic/DI
+  positions feeding an actual **stage plot + input list** in the paperwork pack
+  (§11.6) — a document production managers ask for by name.
+- **Buildability:** crisp, and cheaper than it sounds — this is asset sourcing plus
+  placement presets, no new rendering technology. The real work is a small curated
+  glTF library (low-poly, instanced) and a preset format. **Settle the asset
+  licensing question before anyone models anything:** this is a GPL-3.0 repo, so
+  every human/instrument/PA asset needs a documented, compatible licence, and
+  "found it on Sketchfab" is not one.
+- **KILL — and be firm: rigged, animated, performing musicians.** Dancing drummers
+  is a character-animation product, and mediocre humanoid animation drops straight
+  into the uncanny valley and makes the whole render look *worse* than static
+  figures. Ship **static posed figures**, at most with a whisper of idle motion
+  (breathing sway, drummer's arms at ~2 % amplitude). A still, well-lit, well-posed
+  figure reads as a photograph; a badly animated one reads as a games demo from
+  2004. Same ruling on the audience: a crowd *plane* of a few hundred instanced
+  silhouettes with subtle bob is convincing and costs nothing; individually
+  animated people are a money pit.
+
+### 6.10 Atmospherics as placeable machines — **MUST** · P2/P3 · research-y
+
+> *Owner directive, 2026-09-09: "also realistic smoke from smoke generators".*
+> Agreed on the goal. This is the most expensive item in the document, so it needs
+> to be sequenced honestly rather than treated as one feature.
+
+One-line: hazers, foggers, low-fog units and CO₂ jets are **objects you place and
+trigger**, and what they emit is a real volume that moves through the room and
+that beams scatter inside.
+
+The distinction between the four matters technically *and* matters to LDs, who
+treat them as completely different tools:
+
+| Device | Behaviour | Visual job |
+| --- | --- | --- |
+| **Hazer** | Fine, even, slow-settling; fills the whole room over minutes | Makes *every* beam visible. The baseline state of any show. |
+| **Fogger / smoke machine** | Dense billowing plume from a nozzle, dissipating over ~30 s | A *moment*. Bursts on a hit, rolls across the deck, thins. |
+| **Low fog / dry ice / CO₂ fog** | Heavy, hugs the floor, pools and spills off the deck edge | Ballads, reveals, first dance. Pure client-pleaser. |
+| **CO₂ jet / cryo** | Sharp white column fired upward for ~2 s | Drops and chorus hits. Extremely photogenic, trivially cheap to fake. |
+
+- **Simple:** a **Haze slider** (`none → light → heavy`), on by default at "light",
+  plus draggable machines with a big **Fire** button and a `puff / blast /
+  continuous` choice. Fog machines get a direction arrow you drag. No fluid
+  parameters, no solver settings, ever.
+- **Pro:** per-machine output rate, plume velocity and cone, density, dissipation
+  time, a room **air-movement vector** ("HVAC drift" — the thing that actually
+  decides whether haze behaves on a real gig), machines triggerable from cues and
+  from the busking grid, and a **timeline pre-roll** so a fog cue fired at −4 s
+  looks right when the light cue lands. That pre-roll detail is exactly what a
+  working LD will check for.
+- **Buildability: research-y, and the hardest thing in this vision.** Ship it as
+  three explicitly separate deliverables, evaluating after each:
+  1. **Global haze done properly** (§10.1) — scene-wide density with a height
+     gradient and slow drift. Medium effort, delivers roughly 70 % of the total
+     perceived benefit. Do this first, in P3, then stop and look.
+  2. **Localised static volumes** — a low-fog "pool" primitive on the deck and a
+     soft plume cone at each machine, animated by a noise field rather than
+     simulated. Cheap, fakeable, and for a **still render** essentially
+     indistinguishable from the real thing. The effort/impact curve peaks here.
+  3. **Actual advecting simulation** (GPU fluid or particle-advected froxels) with
+     beams scattering correctly inside it — beautiful, genuinely expensive, a real
+     frame-rate risk on a laptop at FOH, and only worth it for **video** export.
+     Post-v1, and only once (1) and (2) are earning their keep.
+- **The thing not to lose sight of:** what sells a smoke render is not the smoke,
+  it's the **light scattering inside it**. A gorgeous fluid sim that doesn't
+  interact with the beams looks worse than crude geometry that does. Whatever
+  volume representation wins the spike must be the *same* volume the beams are
+  evaluated against. **Do not build two atmospheres.**
+
+### 6.11 What else to steal, interaction-wise
 
 | Source | Behaviour worth copying | Rank |
 | --- | --- | --- |
 | Capture / Vectorworks | Type a number mid-drag to commit an exact length/angle | **MUST** |
 | Capture | Drag from the console-patch list onto an existing fixture to associate it (their 2026 "Import At Position" idea) — our version: drag an MVR/console fixture onto a placed one | STRONG |
 | WYSIWYG | Fixture *symbols* carrying their own paperwork metadata, so the plot and the patch can never disagree | STRONG |
-| Depence R3/R4 | Plot pages with fixture symbols annotated with DMX/circuit/ID, multi-page PDF export in one click | STRONG (§6.3) |
+| Depence R3/R4 | Plot pages with fixture symbols annotated with DMX/circuit/ID, multi-page PDF export in one click | STRONG (§10.3) |
 | Capture 2026 | Pinning "Generic" fixtures/truss to the top of the library list — trivial, and makes first-run vastly faster | NICE |
 | Blender/Maya | `F` to frame selection; modifier-held snapping | **MUST** (§3) |
 | SketchUp | Inference lines / guides while drawing | NICE |
@@ -279,7 +754,7 @@ gizmo is.
 
 ---
 
-## 3. Show design end state
+## 7. Show design end state
 
 **Target:** someone who has never touched a console builds a look they are proud
 of, and a programmer can still work fast enough not to be insulted.
@@ -288,7 +763,7 @@ The honest framing: Świetlik is a **previz and design tool, not a show-control
 console**. That licence lets me drop a large amount of console machinery, and
 dropping it is what makes the simple layer possible.
 
-### 3.1 What I borrow from real consoles
+### 7.1 What I borrow from real consoles
 
 | Borrowed | From | Why it survives |
 | --- | --- | --- |
@@ -298,22 +773,22 @@ dropping it is what makes the simple layer possible.
 | **`@` intensity entry** | Hog / Eos | `@ 50 ⏎` is muscle memory for every programmer and genuinely faster than a slider for non-programmers too. |
 | **Highlight / solo** | MA "Highlight", Eos "Hilite" | "which light is this?" is the #1 question in a rig. Cheap, enormous. |
 | **Flash-on-hold vs latch** for playback buttons | Avolites / MagicQ | The core busking primitive. |
-| **FX with size / speed / spread-between-heads** | MagicQ FX engine | The three-parameter mental model is the right one (§3.5). |
+| **FX with size / speed / spread-between-heads** | MagicQ FX engine | The three-parameter mental model is the right one (§7.5). |
 | **Tracking-free cue lists** | Hog/Chamsys cue-only behaviour | See the kill list. |
-| **Executor grid / playback pages** | MA executors, Chamsys playbacks | The busking surface (§3.6). |
+| **Executor grid / playback pages** | MA executors, Chamsys playbacks | The busking surface (§7.6). |
 
-### 3.2 What I deliberately drop
+### 7.2 What I deliberately drop
 
 | Dropped | Why |
 | --- | --- |
 | **Tracking and cue-only/track-through semantics** | The #1 source of "why did that light come on" confusion. For previz, every cue stores an explicit, complete state. Snapshot semantics. Slower to program, impossible to misunderstand. If a pro needs tracking, they're programming on their console anyway. |
-| **Command-line syntax as the *primary* input** | `Group 4 At 50 Please` is fast and unlearnable. Offer it in pro mode as an accelerator (§3.8), never as the path of least resistance. |
+| **Command-line syntax as the *primary* input** | `Group 4 At 50 Please` is fast and unlearnable. Offer it in pro mode as an accelerator (§7.8), never as the path of least resistance. |
 | **Multi-user / session / backup-gateway machinery** | Not a show-critical system. |
-| **Timecode chasing, MSC, MIDI show control, macros, plugins** | Show-control surface area with zero previz value. (An audio-file timeline for previz-against-the-track is different and is STRONG — §6.9.) |
+| **Timecode chasing, MSC, MIDI show control, macros, plugins** | Show-control surface area with zero previz value. (An audio-file timeline for previz-against-the-track is different and is a MUST — §11.9.) |
 | **Parking, inhibitive masters, grand-master law nuance, DMX curves per channel** | Pro-console hygiene features for a live rig we do not have. |
 | **Fixture profile *editing*** | Profiles come from OFL/GDTF. Hand-editing invites exactly the kind of silent error that ruins trust. Report bad profiles upstream instead. |
 
-### 3.3 Palettes and presets — **MUST** · P1+/P4 · crisp
+### 7.3 Palettes and presets — **MUST** · P1+/P4 · crisp
 
 One-line: named, reusable, referenced values for position / colour / beam / gobo,
 stored once and pointed at by looks and cues.
@@ -323,7 +798,7 @@ stored once and pointed at by looks and cues.
   palettes ship pre-populated with *named theatrical colours* ("Congo Blue",
   "Bastard Amber", "Open White", "3200 K", "Hot Pink") — not RGB sliders. Position
   palettes get *semantic* names tied to the venue ("Drum Riser", "Lectern",
-  "Centre Stage", "Audience", "Back Wall") and §4.3 fills them automatically.
+  "Centre Stage", "Audience", "Back Wall") and §9.4 fills them automatically.
 - **Pro:** per-fixture-type and per-fixture storage granularity (the MA distinction
   that makes palettes portable across rig changes), "update preset" propagation
   with a preview of affected cues, hard/soft value inspection.
@@ -331,12 +806,12 @@ stored once and pointed at by looks and cues.
   decision that must happen before cues get rich, or retrofitting it is a rewrite.
   Put it early.
 
-### 3.4 Newcomer-sensible groups — **MUST** · P2/P4 · crisp
+### 7.4 Newcomer-sensible groups — **MUST** · P2/P4 · crisp
 
 One-line: groups that exist before the user makes any, named the way people
 actually talk.
 
-When fixtures are placed on positions (§2.2), groups can be *generated*:
+When fixtures are placed on positions (§6.2), groups can be *generated*:
 `All Fixtures`, `All Spots`, `All Washes`, `All Beams`, `FOH Truss`,
 `Mid Truss`, `Floor Package`, `Odds / Evens`, `Stage Left / Right / Centre`,
 `Inner / Outer pairs`. That last family (odds/evens, symmetrical pairs, inside-out
@@ -350,7 +825,7 @@ create them.
   idea — the group's grid is what makes 2D effects possible at all).
 - **Buildability:** crisp. Generated groups are a pure function of the rig.
 
-### 3.5 Look building — **MUST** · P2/P4 · crisp
+### 7.5 Look building — **MUST** · P2/P4 · crisp
 
 One-line: a *look* is a named, complete stage state, assembled from
 "who + what" sentences, and it is the primary unit of design — above cues.
@@ -380,7 +855,7 @@ each row *is* a selection + parameter set.
   model. The work is naming and UI, not new domain logic. **This is the single
   highest-value Phase 4 item.**
 
-### 3.6 Effects engine UX without the jargon — **MUST** · P3/P4 · crisp
+### 7.6 Effects engine UX without the jargon — **MUST** · P3/P4 · crisp
 
 One-line: effects described by *behaviour* first, parameters second.
 
@@ -408,10 +883,10 @@ requirement.
   waveform curves, FX stacking with priority, fader-controls-size/speed (the
   MagicQ trick — one slider scales a running effect, which is *the* busking move).
 - **Buildability:** crisp. Vocabulary layer + preset JSON over existing maths.
-- **Watch out:** "Spread" must be defined against **group order** (§3.4), so
+- **Watch out:** "Spread" must be defined against **group order** (§7.4), so
   group-order tooling is a prerequisite, not a nice-to-have.
 
-### 3.7 Cue stacks *and* a busking grid — both **MUST**, different jobs · P4 · crisp
+### 7.7 Cue stacks *and* a busking grid — both **MUST**, different jobs · P4 · crisp
 
 Don't choose. They answer different questions:
 
@@ -433,9 +908,14 @@ Don't choose. They answer different questions:
   stack and a proper release/priority model (HTP for intensity, LTP for
   everything else — the one piece of console theory worth keeping).
 - **Buildability:** crisp; the `CuePool`/`ChasePool`/`Master` models already cover
-  most of it. Mostly a UI and a keymap (§3).
+  most of it. Mostly a UI and a keymap (§8).
+- **Do not build a third thing.** The cue stack is the timeline (§4.1) advanced by
+  GO instead of by a clock; the busking grid is the same looks addressed by
+  hotkey instead of by order. Three surfaces, one model. And all three inherit
+  the transport semantics of §3.2 — a look released from the grid fades exactly
+  the way a cue released from the stack does.
 
-### 3.8 Pro accelerators — **STRONG** · P4 · crisp
+### 7.8 Pro accelerators — **STRONG** · P4 · crisp
 
 One-line: an optional command line and a command palette, so speed is available
 without being mandatory.
@@ -447,13 +927,13 @@ without being mandatory.
 - **Terse command line (backtick)** — `g4 @ 50`, `pos drums`, `rec look 12`.
   A pro-mode affordance. STRONG, not MUST.
 
-### 3.9 Save / recall — **MUST** · P2 · crisp
+### 7.9 Save / recall — **MUST** · P2 · crisp
 
 One-line: autosave, named versions, and never lose work.
 
 - **Simple:** it's just saved. Always. A "Versions" list with timestamps and
   auto-generated thumbnails. "Before the client call" restore points.
-- **Pro:** explicit save-as, showfile diff (§6.7), per-element import ("bring the
+- **Pro:** explicit save-as, showfile diff (§10.7), per-element import ("bring the
   looks from last year's gala into this show" — *very* high value for an agency
   with repeating events).
 - **Buildability:** crisp locally (the `.asls` format and `persistLocally` exist).
@@ -464,13 +944,13 @@ One-line: autosave, named versions, and never lose work.
 
 ---
 
-## 4. Keyboard control
+## 8. Keyboard control
 
 A concrete proposal. The app currently has **five uncoordinated `window`-level
 `keydown` listeners** and they already conflict with each other; any keymap work
 must start by fixing that.
 
-### 4.1 Existing bindings (verified in source)
+### 8.1 Existing bindings (verified in source)
 
 | Key | Current behaviour | Where |
 | --- | --- | --- |
@@ -484,7 +964,7 @@ must start by fixing that.
 | `Esc` | clear list highlight | `uikit.list.vue` |
 | `↑ ↓ ← →` | **pan the camera** | `orbitcontrol.zup.patch.js` (keyCode-based) |
 
-### 4.2 The three real conflicts, and my ruling
+### 8.2 The three real conflicts, and my ruling
 
 1. **`Ctrl+Z` is taken by "apply transform".** This is the worst of the three: it
    is the most sacred shortcut in computing, bound to something that is not undo,
@@ -506,7 +986,7 @@ must start by fixing that.
    retire `H` in favour of `Shift+H`** (freeing `H` for Highlight, which is a far
    more valuable binding for a lighting tool).
 
-### 4.3 The prerequisite: one keyboard router — **MUST** · P4 (do it first) · crisp
+### 8.3 The prerequisite: one keyboard router — **MUST** · P4 (do it first) · crisp
 
 One-line: a single additive module owns `window` keydown, resolves the active
 *context*, and dispatches; existing fragment listeners migrate behind it.
@@ -526,7 +1006,7 @@ Also **MUST**: a discoverable shortcut sheet (`?`) generated from the binding
 registry, and **STRONG**: user-rebindable keys (pro users will want their console's
 muscle memory; an MA operator and a Hog operator disagree about everything).
 
-### 4.4 Proposed keymap
+### 8.4 Proposed keymap
 
 **Selection**
 
@@ -570,7 +1050,10 @@ muscle memory; an MA operator and a Hog operator disagree about everything).
 | `⏎` (Enter) | **GO** on the selected cue stack |
 | `Shift+⏎` | Back one cue |
 | `Space` | Pause / resume (closest to today's meaning — minimal retraining) |
-| `Ctrl+Space` | Release all / stop all |
+| `Ctrl+Space` | Release all / stop all (fades over the global release time — §3.2) |
+| `Shift+Space` | Release the *selected* playback only ("let go") |
+| `Ctrl+Home` / `Ctrl+End` | Playhead to start / end of the timeline (§4.1) |
+| `C` | Toggle cycle/loop region on the timeline (Logic idiom) |
 | `B` | Tap tempo (tap four times, BPM locks) |
 | `<` / `>` | BPM −1 / +1 · with `Shift` ±10 |
 | `Ctrl+1`–`9` | Fire executor 1–9 (outside Busk mode) |
@@ -611,6 +1094,8 @@ distinction and MagicQ's playback layouts.
 | Key | Action |
 | --- | --- |
 | `Ctrl+K` | **Command palette** (fuzzy + natural language → the AI front door) |
+| `Alt+1`–`Alt+9` | Recall workspace layout 1–9 (Logic screensets — §5.1) |
+| `Alt+Q/W/E/R` | Jump to mode: Build / Look / Show / Present (§5.1) |
 | `` ` `` | Terse command line (pro) |
 | `Ctrl+Z` / `Ctrl+Shift+Z` | Undo / redo (**reclaimed**) |
 | `Ctrl+S` | Save version · `Ctrl+Shift+S` save as |
@@ -620,18 +1105,18 @@ distinction and MagicQ's playback layouts.
 
 **KILL:** a numeric-keypad console emulation layer, and encoder-wheel MIDI
 mapping for v1. Both are pro-operator comforts for a product whose pros will be
-using their own console as the input device anyway (§6.1).
+using their own console as the input device anyway (§10.1).
 
 ---
 
-## 5. AI-native features
+## 9. AI-native features
 
 Where "ask Claude" genuinely beats any UI — and where it's theatre. The test I
 apply: *does the task have a verifiable correct answer, is it tedious, and does it
 require holding a lot of context at once?* Three yeses = build it. Mostly
 aesthetic judgement with no verifiable answer = suspicious.
 
-### 5.1 Fixture substitution — **MUST** · P1+ · crisp
+### 9.1 Fixture substitution — **MUST** · P1+ · crisp
 
 One-line: "the rental house is out of Mac Auras, they have Rush PAR 2s — swap
 them and tell me what I lose."
@@ -646,15 +1131,15 @@ lectern cues relied on them"), and re-renders a before/after.
 
 - **Simple:** "Swap fixture" → pick the replacement → a plain-English impact list.
 - **Pro:** per-channel mapping table, diff view, selective accept.
-- **Build:** crisp, given palettes are *references* (§3.3). Testable: assert
+- **Build:** crisp, given palettes are *references* (§7.3). Testable: assert
   channel-function coverage and palette validity after a swap.
 
-### 5.2 Rig suggestion from a venue / brief description — **MUST** · P1+ · crisp
+### 9.2 Rig suggestion from a venue / brief description — **MUST** · P1+ · crisp
 
 One-line: paste the client brief, get a rig.
 
 *With one hard constraint:* Claude selects and parameterises the **rig templates
-from §2.7**, it does not free-form geometry. That makes it reliable, inspectable,
+from §6.7**, it does not free-form geometry. That makes it reliable, inspectable,
 fast, and testable. Free-form generation produces trusses floating at 11.3 m in a
 room with a 6 m ceiling and destroys trust in one shot.
 
@@ -664,7 +1149,7 @@ room with a 6 m ceiling and destroys trust in one shot.
 - **Build:** crisp once templates exist. Validate output against venue geometry
   *programmatically* — never trust the model's arithmetic about clearances.
 
-### 5.3 Show doctoring / design critique — **MUST** · P1+ · crisp
+### 9.3 Show doctoring / design critique — **MUST** · P1+ · crisp
 
 One-line: "review this show" → a numbered list of real problems.
 
@@ -685,7 +1170,7 @@ it reliable, fast, and free to run on every save.
 - **Pro:** rule severity configuration, suppressions, CI-style report.
 - **Build:** crisp. Highest value-per-effort ratio of any AI feature here.
 
-### 5.4 Auto-focus positions — **STRONG** · P1+ · crisp
+### 9.4 Auto-focus positions — **STRONG** · P1+ · crisp
 
 One-line: "point the mid-truss spots at the drum riser" → correct pan/tilt for
 every fixture, from actual geometry.
@@ -701,7 +1186,7 @@ at rig-build time is an excellent default.
   per fixture, store as palette.
 - **Build:** crisp for aiming. Even-coverage *solving* is research-y — defer.
 
-### 5.5 Natural-language look generation — **STRONG** (not MUST) · P1+ · crisp
+### 9.5 Natural-language look generation — **STRONG** (not MUST) · P1+ · crisp
 
 One-line: "warm intimate ballad look, faces lit, drummer in a blue beam" → a look.
 
@@ -715,25 +1200,25 @@ the UI: a *conversation about the current look*, not a one-shot generator.
 - **Simple:** a text box under the Looks shelf. Variations offered as thumbnails.
 - **Pro:** generated looks land in the programmer as a normal, fully editable
   selection + parameter state — never an opaque blob.
-- **Build:** crisp (it's §3.5 look-rows + §2.4 groups + §3.3 palettes via MCP).
+- **Build:** crisp (it's §7.5 look-rows + §7.4 groups + §7.3 palettes via MCP).
 - **Essential guard rail:** every AI mutation must be **one undo step** and
   visibly attributed ("generated by Claude — accept / tweak / discard"). Trust in
   an AI-native tool is built entirely out of reversibility.
 
-### 5.6 Paperwork and deliverable generation — **STRONG** · post-v1 · crisp
+### 9.6 Paperwork and deliverable generation — **STRONG** · post-v1 · crisp
 
 One-line: "produce the pack" → plot PDF, patch sheet, instrument schedule, kit
 list, power summary, cue list with notes.
 
 Boring, tedious, verifiable, and it is literally the billable artefact. Claude
 assembles and writes the prose (the cue-note column, the scope paragraph for the
-client); the app generates the numbers. See §6.3/§6.6.
+client); the app generates the numbers. See §10.3/§10.6.
 
-### 5.7 Gimmick list — **KILL**, with reasons
+### 9.7 Gimmick list — **KILL**, with reasons
 
 | Idea | Why it's a trap |
 | --- | --- |
-| **"Drop an MP3, get a programmed show"** | Beat detection is easy; *taste* and *structure* are the job. It will produce something that strobes the chorus and reads as an AI toy. Ship beat-grid + section markers + "suggest a cue per section" as an *assist* (§6.9) and never as the headline. |
+| **"Drop an MP3, get a programmed show"** | Beat detection is easy; *taste* and *structure* are the job. It will produce something that strobes the chorus and reads as an AI toy. Ship beat-grid + section markers + "suggest a cue per section" as an *assist* (§10.9) and never as the headline. |
 | **AI busking the show live** | Latency, non-determinism, and no LD will ever hand over the faders. Also there is no undo during a show. |
 | **Chat as the only interface** | Chat is a great accelerator and a terrible primary UI for spatial, continuous, and comparative work. Every AI action must have a UI equivalent. |
 | **AI-generated fixture profiles** | A hallucinated DMX map is a *dangerous* artefact — it can send a real fixture to a real position at a real venue. Profiles come from OFL/GDTF only. Hard rule. |
@@ -742,7 +1227,7 @@ client); the app generates the numbers. See §6.3/§6.6.
 
 ---
 
-## 6. Rendering priorities from an LD's eye
+## 10. Rendering priorities from an LD's eye
 
 Ranked by **client-impact per unit of effort** — i.e. what makes a client say
 "yes, that's the show", not what's technically impressive. Capture's 2026 release
@@ -753,16 +1238,25 @@ flare and image settings*. Not global illumination.
 | --- | --- | --- | --- | --- | --- |
 | 1 | **Haze that behaves like haze** | Enormous | Medium | P3 | research-y |
 | 2 | **Bloom + exposure + tone mapping** | Very high | Low | P3 | crisp |
-| 3 | **Dark room + drape** (§2.6) | Very high | Low | P2 | crisp |
+| 3 | **Dark room + drape** (§6.6) | Very high | Low | P2 | crisp |
 | 4 | **Emissive fixture faces / lens glow** | High | Low | P3 | crisp |
 | 5 | **Beam falloff + shape fidelity** | High | Medium | P3 | crisp |
 | 6 | **Camera presets & lens control** | High | Low | P3/P4 | crisp |
 | 7 | **Still + video export** | High | Medium | P3 | crisp |
-| 8 | **LED wall content** (§2.5) | High (Jake's market) | Medium | P2/P3 | crisp |
-| 9 | **Human figures for scale** | Medium-high | Low | P2 | crisp |
+| 6b | **Band, instruments, backline & PA in the scene** (§6.9) | Very high | Low-medium | P2 | crisp |
+| 7 | **Still + video export** | High | Medium | P3 | crisp |
+| 8 | **LED wall content** (§6.5) | High (Jake's market) | Medium | P2/P3 | crisp |
+| 9 | **Localised fog/low-fog/CO₂ volumes** (§6.10 step 2) | High | Medium-high | P3 | research-y |
 | 10 | **Gobo projection + rotation + prism** | Medium-high | High | P3 | research-y |
 | 11 | **Shadows from truss/set/people** | Medium | Medium | P3 | research-y |
-| — | Path-traced / GI offline renderer; photometric lux reporting | — | — | **KILL** | — |
+| 12 | **Advecting smoke simulation** (§6.10 step 3) | Medium (high for video) | Very high | post-v1 | research-y |
+| — | Path-traced / GI offline renderer; photometric lux reporting; rigged performer animation | — | — | **KILL** | — |
+
+Note the deliberate ordering upset: **populating the stage (6b) outranks every
+remaining rendering feature**, including gobos and localised smoke. Given equal
+effort, a mid-quality render of a *full* stage beats a high-quality render of an
+*empty* one every single time, because the client is not evaluating your renderer
+— they're trying to picture their event.
 
 Detail on the ones that need it:
 
@@ -798,7 +1292,7 @@ intensity as well as angle (narrow = brighter — LDs *feel* this); soft vs hard
 edge differentiated by fixture class (wash/spot/beam/hybrid); correct beam angles
 from the profile. **Flag:** OFL beam-angle and lumen data is inconsistent in
 quality. A curated, verified subset of ~100 fixtures that render *right* beats
-190 manufacturer folders that render *approximately* (§6.8).
+190 manufacturer folders that render *approximately* (§10.8).
 
 **6. Camera presets — MUST.** Named views: `FOH` (centre, eye height, ~35 mm),
 `Audience 3/4`, `Truss-eye`, `Side stage`, `Drum riser POV`, `Plan`. Plus focal
@@ -816,11 +1310,21 @@ of a cue-stack walk or a camera orbit; a contact sheet of every look. The export
 `preserveDrawingBuffer` or a forced render, so solve that once, properly, for both
 callers).
 
-**9. Human figures — STRONG, and cheaper than it sounds.** Simple silhouette
-figures: band positions, a lectern presenter, a crowd plane. A render with no
-people in it reads as a CAD drawing; the *same* render with four silhouettes reads
-as a show. Also the only honest way to judge whether faces are actually lit —
-which is the note clients give most often and non-LDs get wrong most often.
+**6b. Band, instruments, backline and PA — MUST.** Full treatment in §6.9. From
+the renderer's side the only requirements are: figures and cabinets must **receive
+light and cast shadows** (otherwise they float and look pasted on), skin needs a
+non-plastic response so faces don't go waxy under saturated colour, and PA/backline
+should be genuinely matte black — a black box that reads as black in a bright beam
+is what makes the rest of the frame look correctly exposed. This is also the only
+honest way to judge whether faces are lit, which is the note clients give most
+often and non-LDs get wrong most often.
+
+**9. Localised fog volumes — STRONG.** Full treatment in §6.10. The ranking here
+is the important part: **global haze (item 1) is a MUST and localised machine
+smoke is a STRONG.** Do not let a fog-machine plume jump the queue ahead of
+room-wide haze, bloom, or putting a band on the stage — a room with beautiful even
+haze and no fog plumes looks like a professional show; a room with a gorgeous CO₂
+jet and no haze looks like a screensaver.
 
 **10. Gobos — STRONG but expensive.** Textured beams, projection onto floor/drape
 with correct keystone, rotation, and prism splitting. High visual value, genuinely
@@ -835,11 +1339,11 @@ it is good enough. Full stop.
 
 ---
 
-## 7. Things not yet on the roadmap
+## 11. Things not yet on the roadmap
 
 Ordered by strategic weight.
 
-### 7.1 Art-Net / sACN **input** — visualize from a real console — **MUST** · post-v1 · crisp
+### 11.1 Art-Net / sACN **input** — visualize from a real console — **MUST** · post-v1 · crisp
 
 One-line: Świetlik listens on the network and renders whatever a real MA3/Avo/Hog/
 MagicQ is outputting.
@@ -861,7 +1365,7 @@ cloud-renderer-fed-by-a-local-bridge story.
   MCP — note the nice symmetry: the Phase 1 bridge architecture is already the
   right shape to host this).
 
-### 7.2 MVR / GDTF import and export — **MUST** · post-v1 · research-y
+### 11.2 MVR / GDTF import and export — **MUST** · post-v1 · research-y
 
 One-line: open the MVR the production's drafter sent; export one the console can
 eat.
@@ -873,7 +1377,7 @@ it, Świetlik is an island, and "rebuild the rig by hand" is a non-starter for a
 job that already has a drawing. With it, Świetlik slots into existing workflows as
 a *better-looking, cheaper, browser-based* stop on the pipeline. Note GDTF also
 supersedes OFL as a fixture source with real geometry and photometrics, which
-directly feeds §6.5.
+directly feeds §10.5.
 
 - **Simple:** "Open a rig file" → it appears.
 - **Pro:** layer/class mapping, selective import, export with console-ready
@@ -882,7 +1386,7 @@ directly feeds §6.5.
   geometry; the spec is large and the real-world files are messy. Budget a proper
   spike, and scope v1 to *import fixtures + truss + addresses* only.
 
-### 7.3 Shareable client link — **MUST** · post-v1 · crisp
+### 11.3 Shareable client link — **MUST** · post-v1 · crisp
 
 One-line: send the client a URL, they see the rig and click through the looks in a
 browser — no install, no account, no editing.
@@ -901,7 +1405,7 @@ viewer is the first genuine reason to revisit that.
   Do not bolt it on; it's the thing the persistence layer should be designed
   *towards*, per the roadmap's "nothing should hard-block SaaS".
 
-### 7.4 Console patch export — **STRONG** · post-v1 · crisp
+### 11.4 Console patch export — **STRONG** · post-v1 · crisp
 
 One-line: previz at the desk, export the patch, import it on the console at the
 venue.
@@ -909,7 +1413,7 @@ venue.
 Even a plain CSV/XLSX patch sheet plus an MVR export saves an hour of error-prone
 typing on every load-in. Low effort, instantly respected.
 
-### 7.5 Physical sanity checks — **STRONG** · P2 · crisp
+### 11.5 Physical sanity checks — **STRONG** · P2 · crisp
 
 One-line: the app refuses to let you design something that can't be built.
 
@@ -922,10 +1426,10 @@ and fixture-to-truss collisions, and beam angles that clear the stage.
 Two reasons this punches above its weight: it's what makes a **working LD trust
 the tool** (a pretty render that ignores physics is a toy), and it's what stops a
 **non-LD embarrassing himself** (Jake designing a rig that needs three-phase the
-venue doesn't have). Deterministic rules, fully unit-testable, and it feeds §5.3
+venue doesn't have). Deterministic rules, fully unit-testable, and it feeds §9.3
 directly.
 
-### 7.6 Kit list, quote and rental integration — **STRONG** · post-v1 · crisp
+### 11.6 Kit list, quote and rental integration — **STRONG** · post-v1 · crisp
 
 One-line: the rig generates the gear list, and the gear list generates the number.
 
@@ -935,16 +1439,16 @@ the closest thing to a feature that *directly makes Jake money*, and the data al
 already exists in the rig. (Hard KILL for v1: integrating with any specific rental
 system's API — Rentman, Current RMS et al. Export CSV and stop.)
 
-### 7.7 Show versioning and diff — **STRONG** · post-v1 · crisp
+### 11.7 Show versioning and diff — **STRONG** · post-v1 · crisp
 
 One-line: "what changed between v4 and v5?" in plain English.
 
 Ordinarily a nice-to-have; here it's elevated by the AI story. If Claude can
 restructure a show in one command, the user **must** be able to see exactly what
 it did and roll back precisely. `.asls` being JSON makes a semantic diff
-tractable. Treat this as a *safety* feature for §5, not a convenience.
+tractable. Treat this as a *safety* feature for §9, not a convenience.
 
-### 7.8 Curated fixture library — **STRONG** · P3 · crisp
+### 11.8 Curated fixture library — **STRONG** · P3 · crisp
 
 One-line: ~100 fixtures that are verified to render correctly, surfaced first;
 the other ~190 manufacturer folders still there behind search.
@@ -953,21 +1457,63 @@ Also: a "generic" set (Generic Spot / Wash / Beam / Strobe / Blinder / PAR /
 Batten) pinned to the top for early design before the kit is known — exactly the
 move Capture made in 2026 by pinning their Generic section. Beginners should not
 have to choose between 40 near-identical Chinese moving heads on their first run,
-and a fixture whose beam angle is wrong in the profile undermines §6 silently.
+and a fixture whose beam angle is wrong in the profile undermines §10 silently.
 Cheap to do, and it raises the floor on every render.
 
-### 7.9 Audio timeline for previz-against-the-track — **STRONG** · post-v1 · crisp
+### 11.9 Audio timeline for previz-against-the-track — **MUST** · P3/post-v1 · crisp
 
-One-line: load the MP3, mark the sections, scrub the show against it.
+> *Owner directive, 2026-09-09: "we should have the option to generate or import
+> any effects/songs etc. into it."* Promoted from STRONG to MUST on that basis —
+> and it's the right call: for band work, the track **is** the design brief.
 
-Distinct from the "AI programs your show from audio" gimmick (§5.7). This is just
-a waveform, a beat grid, section markers and a transport that drives the cue
-stack. For any band/DJ/awards work, *designing against the actual track* is how
-the job is really done, and it makes video export dramatically more convincing
-(a silent MP4 of a cue walk sells far worse than the same MP4 with the track
-under it).
+One-line: import the MP3/WAV, mark the sections, scrub the show against it, and
+export video with the track under it.
 
-### 7.10 Small things that buy disproportionate goodwill — **NICE** (build them on quiet afternoons)
+Distinct from the "AI programs your show from audio" gimmick (§9.7). This is a
+waveform, an automatic beat grid, section markers (`intro / verse / chorus /
+breakdown / drop / outro`), and a transport that drives the cue stack and the
+effects engine's beat-sync (§7.6's `1/1, 1/2, 1/4` speed divisions become *real*
+once there's a tempo map). For any band/DJ/awards work, *designing against the
+actual track* is how the job is really done. It also transforms the deliverable:
+a silent MP4 of a cue walk sells far worse than the same MP4 with the music under
+it, and it costs nothing extra to mux.
+
+- **Simple:** drag an MP3 onto the timeline. Tempo and downbeats are detected.
+  Drop a look at a marker; it fires there. Press play, watch the show.
+- **Pro:** manual tempo map and beat nudging, multiple tracks/setlist, per-section
+  cue assignment, offset compensation, and export with the audio embedded.
+- **Build:** crisp. Web Audio gives the waveform and playback; beat detection is a
+  solved, library-shaped problem; the transport already exists in `Live`.
+- **Licensing note:** copyrighted audio embedded in an exported MP4 that gets
+  shared with a client is the user's problem legally, but the app should not make
+  it invisible — a quiet "audio is embedded in this export" line is enough.
+
+### 11.9b Importable and shareable content — **STRONG** · post-v1 · crisp
+
+The other half of the owner's directive. Four import surfaces, ranked:
+
+1. **Media for LED walls and gobos** (`PNG/JPG/MP4/WebM`, plus custom gobo
+   patterns) — **MUST**, and effectively already implied by §6.5. Client artwork
+   arriving as a PNG is the single most common asset in this business.
+2. **Effect presets as portable files** — an effect (§7.6) is already a small JSON
+   blob of waveform/speed/size/spread. Make that exportable and importable so
+   Jake can carry his favourites between shows, and so a library can be shipped,
+   grown, and eventually shared between users. Cheap, and it compounds.
+3. **Looks and cue stacks lifted from another showfile** — "bring last year's gala
+   looks into this show" (also listed under §7.9). High value for repeat events.
+4. **3D models** (`glTF/OBJ`) for set pieces, custom scenery, client-branded
+   props, unusual backline. **STRONG but guard it:** an import path is easy, a
+   *well-behaved* import (scale, up-axis, materials, poly budget, licence
+   provenance) is not. Ship with a validating importer and a poly-count warning,
+   or the first 40 MB Sketchfab download will tank the frame rate and it'll read
+   as the app's fault.
+
+On "generate": for effects and media, generation belongs to §9 — Claude composing
+an effect preset from a description is just §7.6 parameters over the MCP surface
+(crisp, genuinely useful). Generating *video content* for LED walls is a different
+product entirely; **KILL for v1**, revisit never unless a client pays for it.
+
+### 11.10 Small things that buy disproportionate goodwill — **NICE** (build them on quiet afternoons)
 
 - **Metric/imperial toggle**, and trim heights everywhere rather than raw Z.
 - **Mirror mode:** edit stage-left, stage-right follows. Every LD wants this.
@@ -984,14 +1530,15 @@ under it).
 
 ---
 
-## 8. North star — Jake's Monday
+## 12. North star — Jake's Monday
 
 > It's Monday, 09:40. The brief landed on Friday: a 400-person awards dinner at a
 > hotel ballroom, client branding is deep blue and gold, there's a stage with a
 > lectern and a 6 × 3 m LED wall, an eight-piece band for the after-party, and the
 > client wants to see "something impressive" by Wednesday.
 
-**09:41 — The room.** Jake opens Świetlik and clicks **Ballroom**. He types the
+**09:41 — The room.** Jake opens Świetlik. It comes up in **Build** mode, the
+panels exactly the width he dragged them to last week. He clicks **Ballroom**. He types the
 three numbers off the venue's spec sheet: 28 × 18 m, 5.8 m to the ceiling. He
 drags the stage block to 12 × 6 m and sets it 600 mm high. The viewport is already
 a room with a dark floor and a back wall, not a checkerboard. He adds black legs
@@ -1012,37 +1559,72 @@ panels @ 500 mm`, and drags the client's key visual onto it. The wall lights the
 back of the stage. The render stops looking like a lighting diagram and starts
 looking like an event. *Elapsed: twelve minutes.*
 
-**09:58 — The looks.** "Give me a walk-in look: warm, low, elegant, faces lit at
+**09:58 — The people.** He picks the **8-piece with horns** band preset. A drummer
+appears on a riser behind a kit, bass and guitar at their mics, keys stage-left,
+three horns upstage-right, wedges in front of each of them, backline against the
+upstage drape, and a ground-stacked PA either side because the ballroom won't take
+a flown hang. He nudges the drum riser 800 mm stage-right. Immediately he can see
+that the SL tower's lowest fixture is firing straight into the guitarist's face,
+so he raises it two rungs. He also drops in a **lectern + presenter** figure for
+the awards section. The viewport has stopped being a diagram. *Elapsed: eighteen
+minutes.*
+
+**10:04 — The air.** Haze slider to **light** — every beam in the room becomes
+visible and the render gains a stop of depth for one click. He drags two fog
+machines into the wings and a low-fog unit under the front of the deck, because
+the client's brief said "something impressive" and a first-dance reveal out of low
+fog is what that phrase always means. *Elapsed: twenty-four minutes.*
+
+**10:10 — The looks.** "Give me a walk-in look: warm, low, elegant, faces lit at
 the lectern." Claude builds it from the amber palette, aims four FOH units at the
-lectern by geometry, and puts a soft gold wash on the drape. Jake drags the
-intensity of the back wall down 15 % because he can see it's fighting the screen,
-and presses **Save this as → "Walk-in"**. A thumbnail appears on the Looks shelf.
+lectern by geometry — the lectern being an actual object with an actual head
+height — and puts a soft gold wash on the drape. Jake drags the intensity of the
+back wall down 15 % because he can see it's fighting the screen, and presses
+**Save this as → "Walk-in"**. A thumbnail appears on the Looks shelf.
 
 Then: *"same but for the awards moment — big, gold, a shaft of light on the
-winner"*. Then *"now the band"* — and he adds **Chase Left→Right** from the effects
-presets, sets Speed to `1/4` and Spread to 60 %, and watches it run. Six looks on
-the shelf. *Elapsed: thirty-one minutes.*
+winner"*, and he fires the low fog under it to see the shaft actually read. Then
+*"now the band"* — he drags the client's walk-in track and the band's opener onto
+the **timeline**, the beat grid snaps in, and he adds **Chase Left→Right** from the
+effects presets with Speed on `1/4` and Spread at 60 %. It runs in time with the
+music. He puts a CO₂ hit on the first chorus marker because he can, and because
+the client will screenshot exactly that frame. Six looks on the shelf. *Elapsed:
+fifty-one minutes.*
 
-**10:31 — The check.** Jake clicks **Check my show**. Four findings: two fixtures
+He switches to **Show** mode — `Alt+E` — and the workspace becomes a timeline.
+Each group is a track; he drags the six looks onto them and pulls their edges
+until the awards moment lasts as long as the speech will. He opens the automation
+lane under `Floor Beams` and drags a single breakpoint so the tilt creeps up
+through the last eight bars, because Claude's version moved too fast. That lane
+is the thing he could never find before, and it took him one disclosure triangle
+to reach.
+
+And it *feels* right. He hits **Freeze** mid-chase and the stage holds — lights
+stay where they are, nothing goes dark. He hits it again and the chase carries on
+from where it was, in time, instead of snapping back to bar one. He hits **Let go**
+and the whole look fades away over two seconds like a real rig releasing. Nothing
+in the app cuts to black unless he presses the black button.
+
+**10:37 — The check.** Jake clicks **Check my show**. Four findings: two fixtures
 on the SR tower are in no look at all; the awards look has no front light on the
 lectern (faces will be dark on the broadcast feed); one floor beam crosses the LED
 wall and will wash it out; the walk-in look's 0 s fade should probably be 5 s. He
 accepts three fixes, rejects one — he *wants* that beam grazing the screen. Every
 change is one undo step, labelled, in a list.
 
-**10:40 — The deliverable.** He picks the **Shot List**: four named cameras ×
+**10:46 — The deliverable.** He picks the **Shot List**: four named cameras ×
 six looks = 24 renders, exposure set one stop down so they look like show photos
 rather than product shots. Then a 40-second MP4 walking the cue stack with the
 client's walk-in track underneath. Then **Share** → a link with the client's name
 on it, where they can orbit the room and press the six looks themselves.
 
-**10:52 — The paperwork.** One more palette command: *"produce the pack"*. Plot
+**10:58 — The paperwork.** One more palette command: *"produce the pack"*. Plot
 PDF with fixture symbols and addresses, patch sheet, kit list priced off his rate
 card, power summary, and a cue list whose note column is written in sentences a
 client can read. He pastes the kit list straight into the rental enquiry and the
 shareable link straight into the email.
 
-**10:58.** Jake closes the laptop. Eighty minutes from brief to a client-ready
+**11:06.** Jake closes the laptop. Eighty-five minutes from brief to a client-ready
 pitch, a buildable rig, a costed kit list, and a link. On Wednesday the client
 asks for "more blue, less gold" and it takes four minutes. On the Thursday of the
 show, the LD hired for the day imports the MVR into her grandMA3, points her
@@ -1052,3 +1634,9 @@ a rig she did not have to design — from a previz that already matched the room
 That last paragraph is the whole product: **Jake gets paid on Monday, and the
 professional on Thursday finds the tool useful rather than insulting.** Every
 ranking in this document is an attempt to serve both of those people with one app.
+
+But note where the story actually turns. It is not the venue template, or the AI,
+or the render. It's the sentence *"and it feels right"* — freeze holds, resume
+continues, release fades. If that paragraph isn't true, none of the rest of the
+Monday happens, because Jake closes the laptop at 09:50 and opens PowerPoint
+instead. **Build §3 first.**
