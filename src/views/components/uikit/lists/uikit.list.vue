@@ -481,10 +481,8 @@ export default {
     },
     /**
      * Handler for list focus-out
-     *
-     * @param {Object} e focusout event
      */
-    handleFocusOut(e) {
+    handleFocusOut() {
       this.hasFocus = false;
       this.$emit('focused', false);
       // let keepFocus = false;

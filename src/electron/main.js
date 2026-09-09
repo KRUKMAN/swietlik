@@ -4,7 +4,6 @@ import {
   app,
   BrowserWindow,
   dialog,
-  Menu,
   net,
   protocol,
 } from 'electron';
