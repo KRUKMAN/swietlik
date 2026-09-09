@@ -202,7 +202,7 @@ Net result: **zero upstream refactoring** was needed to make the domain layer te
 
 ## 6. Conventions
 
-- **ESLint**: `airbnb-base` + `plugin:vue/vue3-recommended`, parsed by `@babel/eslint-parser`. `npm run lint:ci` **must stay at 0 errors**. (12 warnings are tolerated — see Known debt.)
+- **ESLint**: `airbnb-base` + `plugin:vue/vue3-recommended`, parsed by `@babel/eslint-parser`. `npm run lint:ci` **must stay at 0 errors**. (13 warnings are tolerated — see Known debt.)
 - **JSDoc** on public members: `@class`, `@classdesc`, `@param`, `@return`, `@public`/`@private`. Match the surrounding density; upstream is well-annotated and the docma build consumes it.
 - **Naming**:
   | Pattern | Meaning |

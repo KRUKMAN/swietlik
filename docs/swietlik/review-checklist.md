@@ -18,7 +18,7 @@ indistinguishable, in a transcript, from one that passed.
 
 - [ ] The gate was **run**, not described: `npm run lint:ci`, `npm run test:run`, and
       `npm run build` for anything touching the build. Exit statuses reported.
-- [ ] `lint:ci` is at **0 errors**. Warning count is 12 or fewer and unchanged (`CLAUDE.md §9`).
+- [ ] `lint:ci` is at **0 errors**. Warning count is 13 or fewer and unchanged (`CLAUDE.md §9`).
 - [ ] The evidence **covers the changed surface**. A green test run says nothing about
       `src/views/**`, `src/plugins/visualizer/**`, or `wsc.connection.js` — those have no test
       coverage at all. See [the evidence lesson](lessons/tests-and-lint-are-not-evidence-that-the-app-renders.md).

@@ -10,7 +10,7 @@ git diff develop...HEAD --name-status
 
 `develop` is the pristine `ASLS-org/studio` mirror, so this diff *is* the fork's divergence. Keep this file in sync — **any new upstream edit must be added here in the same change that makes it** (see `/CLAUDE.md` §2).
 
-- **Scope of this snapshot:** Phase 0 (branch `phase-0-foundation`)
+- **Scope of this snapshot:** Phase 0 (branch `phase-0-foundation`) + Phase 1 MCP work (branch `phase-1-mcp`)
 - **Totals:** 52 files changed, +5337 / −5954 (of which `package-lock.json` alone is +1298/−5597 churn from the dependency bump and package rename)
 
 ---
@@ -21,8 +21,8 @@ git diff develop...HEAD --name-status
 
 | File | Reason |
 | --- | --- |
-| `package.json` | Rebrand (`name`, `author`, `contributors` crediting Timé Kadel); added `test` / `test:run` / `lint:ci` scripts; `@asls/wsc-*` `^2.0.5` → `^2.2.0`; added `vitest` + `jsdom`; dropped `semantic-release` and its `release` block (upstream's release pipeline is not ours). |
-| `package-lock.json` | Regenerated for the dependency changes above. |
+| `package.json` | Rebrand (`name`, `author`, `contributors` crediting Timé Kadel); added `test` / `test:run` / `lint:ci` scripts; `@asls/wsc-*` `^2.0.5` → `^2.2.0`; added `vitest` + `jsdom`; dropped `semantic-release` and its `release` block (upstream's release pipeline is not ours). Phase 1: added `mcp` script and dev-deps `@modelcontextprotocol/sdk` + `ws` for the MCP server. |
+| `package-lock.json` | Regenerated for the dependency changes above (Phase 0) and the Phase 1 MCP dev-deps. |
 | `.env` | `WSC_VERSION` `2.2.0-rc.6` → `2.2.0`, aligning the Electron prebuild download with the bumped `@asls/wsc-*` packages. |
 | `index.html` | Tab title → `Świetlik`; favicon repointed to `/images/swietlik_logo.svg`. |
 | `.eslintrc.js` | Resolver settings so `lint:ci` reaches 0 errors: ignore `?worker`/`?raw` Vite query imports in `import/no-unresolved`, add three's extensionless `three/examples/jsm/*` paths to `import/core-modules`, add a node resolver fallback. |
