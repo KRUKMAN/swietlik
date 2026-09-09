@@ -72,6 +72,7 @@ npm run build
 | `npm run test:run` | Vitest **once** — use this in scripted/agent runs |
 | `npm run lint:ci` | ESLint check only. **Must stay at 0 errors.** |
 | `npm run lint` | ESLint **with `--fix` — this mutates source files.** Don't run it casually; it will silently rewrite files you didn't intend to touch. |
+| `npm run mcp` | Starts the Phase 1 MCP server (stdio) + its WebSocket hub on `ws://127.0.0.1:5215`. Claude Code sessions in this repo start it automatically via `.mcp.json` — run it by hand only to debug. Logs go to **stderr**; stdout is the MCP transport. |
 
 **Dependency note:** `@asls/wsc-client` / `@asls/wsc-sdk` are pinned at `^2.2.0`. Do **not** drop back to 2.1.0 — that version's package metadata declares `os: "windows"` instead of the correct `"win32"`, so `npm ci` hard-fails with `EBADPLATFORM` on Windows. `.env`'s `WSC_VERSION="2.2.0"` is kept aligned with these.
 
@@ -101,6 +102,25 @@ app.config.globalProperties.$show = reactive(ShowSingleton);
 ```
 
 Everything the UI can do to a show, it does through `$show`. **This object is the intended command surface for the Phase 1 MCP API.** Treat it as the public API of the domain layer and prefer adding capability there (or in a thin new module beside it) over reaching into models directly.
+
+### The MCP command API (Phase 1)
+
+```
+Claude session ──stdio (MCP)──> mcp/server.js
+                                  │  embeds the ws hub on 127.0.0.1:5215
+                                  ▼
+                       src/mcp-bridge/ (in-app WS client)
+                                  │  executes via the command registry
+                                  ▼
+                       reactive(ShowSingleton)  →  live UI + visualizer
+```
+
+- **`mcp/`** — plain Node ESM (`mcp/package.json` carries `{"type":"module"}`), no build step. `protocol.js` is the shared, dependency-free envelope imported by **both** sides; `tools.js` is the tool catalogue; `hub.js` is the WS server; `server.js` is the MCP stdio entry point. Registered in `.mcp.json`.
+- **`src/mcp-bridge/`** — fully additive except the one-line hook in `App.vue`. `commands/registry.js` maps `commandName → (show, args) → serializable result` with strict argument validation and a uniform `{ ok, result } | { ok, error: { code, message } }` envelope. Command groups live in `commands/*.commands.js` and self-register; `commands/index.js` picks them up with `import.meta.glob`, so **adding a command group means adding a file, never editing the index**.
+- **REACTIVITY INVARIANT** — the bridge binds to `reactive(ShowSingleton)`. Vue's proxy cache dedups that to the same proxy `main.js` installs as `$show`, so external mutations render immediately. Calling the raw singleton silently desyncs the UI. `test/mcp-bridge/index.spec.js` asserts the proxy identity; never weaken it.
+- **Error codes** — `APP_NOT_CONNECTED`, `TIMEOUT` (10 s per command), `VALIDATION`, `COMMAND_ERROR`, `UNKNOWN_COMMAND`.
+- **Ports** — 5215 default, `SWIETLIK_MCP_PORT` / `VITE_SWIETLIK_MCP_PORT` to override. **5214 is the DMX gateway and is rejected.** Loopback only, no auth (Phase 1 non-goal).
+- **Patching is a two-step composite.** `patch_fixture` fetches the OFL JSON and attaches it as `fixtureData.OFLData` *before* `fixturePool.addRaw` (the `Fixture` constructor parses synchronously), then calls `universe.patchFixture`. The registry owns this so no caller can produce a half-built fixture.
 
 ### Model hierarchy (`src/models/DMX/`)
 
@@ -176,6 +196,8 @@ Net result: **zero upstream refactoring** was needed to make the domain layer te
 
 **Phase 0 close: 156 tests across 10 files, all passing.**
 
+**Phase 1 close:** `test/mcp-bridge/**` covers the registry, the validator, every command group and the WS bridge under jsdom; `test/mcp/**` covers the protocol, the hub and the MCP server under Node (`// @vitest-environment node` at the top of those files — there is still only **one** vitest config). `test/mcp/tool-parity.spec.js` fails the build if the MCP tool catalogue and the in-app registry drift apart. `test/helpers/show-double.js` is the shared show stand-in for command tests.
+
 ---
 
 ## 6. Conventions
@@ -233,7 +255,7 @@ Both fail open on any internal error and block at most once per stop sequence. I
 | `public/COPYING.txt` | Duplicate of root COPYING so the built app serves the splash link (named .txt — a public file named COPYING shadows the `@root/COPYING?raw` module URL in dev and breaks the entire app). Sync both if the text ever changes. |
 | `.asls` showfile extension | **Intentionally kept.** It is a file-format contract with existing showfiles; renaming it breaks user data. Also `DEFAULT_PROJECT_NAME = 'new_project.asls'`. |
 | Electron build | Completely unverified in this fork. |
-| 12 lint warnings | Pre-existing upstream: 8× `no-console`, 1× `func-names`, 1× `vue/no-v-html`, plus others. 0 errors. Not worth fixing (merge debt for nothing). |
+| 13 lint warnings | Pre-existing upstream: 8× `no-console`, 1× `func-names`, 1× `vue/no-v-html`, plus others. 0 errors. Not worth fixing (merge debt for nothing). |
 | `postprocessing` dependency | Installed (`^6.36.4`) but **not imported anywhere** in `src/`. See the Phase 3 roadmap entry. |
 
 ---

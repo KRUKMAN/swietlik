@@ -72,6 +72,24 @@ Note: `Show` also read-migrates the upstream key `ASLS_STUDIO_SHOWFILE` on load,
 
 ---
 
+## 8. MCP-driven verification (Phase 1 onward — the preferred path)
+
+From Phase 1 the checklist above can be driven through the MCP tools instead of by hand, and **this is the standing verification method for later phases**. It needs the app running (`npm start`, <http://localhost:5173> open) and a Claude Code session in this repo, which starts the server from `.mcp.json` automatically.
+
+- [ ] `get_show_state` returns a show summary. (If it errors with `APP_NOT_CONNECTED`, the app is not open or the bridge did not start — check the browser console for `[mcp-bridge] connected to ws://127.0.0.1:5215`.)
+- [ ] `search_fixture_library` with query `sharpy` returns `clay-paky/sharpy`.
+- [ ] `patch_fixture` with `{ manufacturer: "clay-paky", model: "sharpy" }` returns an id and a `chStart`, **and the fixture appears in the 3D viewport without a page reload** — that is the reactivity invariant proving itself.
+- [ ] `set_channels` with the new fixture id and `accessors: [{ type: "Dimmer", value: 255 }]` succeeds.
+- [ ] `screenshot_visualizer` returns an image in which **the beam is visible**. This replaces "look at the screen" with evidence you can attach to the work.
+- [ ] `move_fixture` with a new `position` moves the fixture in the next screenshot.
+- [ ] `unpatch_fixture` removes it, and the following screenshot shows an empty stage.
+- [ ] The browser console still shows **zero uncaught errors** (§6 is still the gate).
+- [ ] Closing the tab and reopening it reconnects the bridge on its own; with two tabs open, the **newest** one serves the tools and the older logs `detached by hub`.
+
+A screenshot is evidence. "The tools returned ok" is not evidence that anything rendered — §5 and §6 still decide.
+
+---
+
 ## Result
 
 | # | Check | Pass |
@@ -83,5 +101,6 @@ Note: `Show` also read-migrates the upstream key `ASLS_STUDIO_SHOWFILE` on load,
 | 5 | Dimmer 255 → visible beam | ☐ |
 | 6 | **Zero uncaught console errors** | ☐ |
 | 7 | `SWIETLIK_SHOWFILE` non-null | ☐ |
+| 8 | MCP path: patch → screenshot shows a beam → unpatch | ☐ |
 
 Record the date, the branch, and anything that failed. A partial pass is a partial pass — say so rather than rounding up.

@@ -110,3 +110,7 @@ New files only; nothing upstream to conflict with.
 - `public/images/swietlik_logo.svg`
 - `src/assets/images/swietlik_logo_textual.svg`, `src/assets/images/swietlik_standalone_logo.svg`
 - `CLAUDE.md`, `docs/swietlik/roadmap.md`, `docs/swietlik/verification.md`, `docs/swietlik/upstream-diff.md` (this file)
+- `.mcp.json` — registers the Phase 1 MCP server for Claude Code sessions in this repo.
+- `mcp/package.json`, `mcp/protocol.js`, `mcp/tools.js`, `mcp/hub.js`, `mcp/server.js` — Phase 1 MCP server package (plain Node ESM, no build step). GPL-3.0 like the rest of the repo.
+- `src/mcp-bridge/` — in-app WS bridge and command registry: `index.js`, `bridge.js`, `ofl.js`, `commands/{index,registry,validate}.js`, `commands/{query,patch,control,show,vision}.commands.js`.
+- `test/mcp-bridge/*.spec.js`, `test/mcp/*.spec.js`, `test/helpers/show-double.js` — Phase 1 test suites and the shared show double.

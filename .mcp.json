@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "swietlik": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["mcp/server.js"],
+      "env": {}
+    }
+  }
+}
