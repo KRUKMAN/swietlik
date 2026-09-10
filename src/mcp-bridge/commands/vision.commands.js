@@ -51,8 +51,15 @@ registerCommand('screenshot_visualizer', {
     // visualizer's per-frame update, not at property-set time — capturing in
     // the same tick reads stale matrices (issue #5). Yield two frames so the
     // animation loop applies pending updates, then force a final render.
-    await new Promise((resolve) => { requestAnimationFrame(resolve); });
-    await new Promise((resolve) => { requestAnimationFrame(resolve); });
+    // Each wait races a timer: rAF never fires in a backgrounded/throttled
+    // tab, and an agent-driven app is usually backgrounded — without the
+    // race the command would hang into the hub's 10s deadline.
+    const frame = () => new Promise((resolve) => {
+      const timer = setTimeout(resolve, 150);
+      requestAnimationFrame(() => { clearTimeout(timer); resolve(); });
+    });
+    await frame();
+    await frame();
     if (typeof handle.render === 'function') {
       handle.render();
     }
