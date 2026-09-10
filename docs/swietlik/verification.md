@@ -94,13 +94,13 @@ A screenshot is evidence. "The tools returned ok" is not evidence that anything 
 
 | # | Check | Pass |
 | --- | --- | --- |
-| 1 | Tab title `Świetlik` | ☐ |
-| 2 | Splash: wordmark + GPLv3 link + ASLS attribution | ☐ |
-| 3 | Default universe in patch bay | ☐ |
-| 4 | Clay Paky Sharpy patched **and visible in 3D** | ☐ |
-| 5 | Dimmer 255 → visible beam | ☐ |
-| 6 | **Zero uncaught console errors** | ☐ |
-| 7 | `SWIETLIK_SHOWFILE` non-null | ☐ |
-| 8 | MCP path: patch → screenshot shows a beam → unpatch | ☐ |
+| 1 | Tab title `Świetlik` | ☑ 2026-09-09 |
+| 2 | Splash: wordmark + GPLv3 link + ASLS attribution | ☑ 2026-09-09 |
+| 3 | Default universe in patch bay | ☑ 2026-09-09 |
+| 4 | Clay Paky Sharpy patched **and visible in 3D** | ☑ 2026-09-10 (MCP) |
+| 5 | Dimmer 255 → visible beam | ☑ 2026-09-10 ([evidence](evidence/phase1-e2e-beam.png)) |
+| 6 | **Zero uncaught console errors** | ☑ 2026-09-09 (live Chrome session) |
+| 7 | `SWIETLIK_SHOWFILE` non-null | ☑ 2026-09-09 |
+| 8 | MCP path: patch → screenshot shows a beam → unpatch | ☑ 2026-09-10 — 10/10 §8 checks, incl. NaN-default regression and move-then-screenshot diff ([beam](evidence/phase1-e2e-beam.png), [moved](evidence/phase1-e2e-moved.png)) |
 
 Record the date, the branch, and anything that failed. A partial pass is a partial pass — say so rather than rounding up.
