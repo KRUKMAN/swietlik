@@ -38,16 +38,19 @@ beforeEach(() => {
 });
 
 describe('FixturePool#addRaw', () => {
-  it('assigns incrementing ids, ignoring the id supplied in the fixture data', () => {
+  it('preserves a caller-supplied id, generating one on absence or collision', () => {
     const pool = new FixturePool();
 
-    // `addRaw` overwrites whatever id the caller passed with genFixtureId().
+    // Preserving serialized ids keeps universe/group cross-references valid
+    // across a save -> load round trip (see fixtureIdStability.spec.js).
     const first = pool.addRaw(sharpyData({ id: 77 }));
-    const second = pool.addRaw(sharpyData({ id: 77 }));
+    const second = pool.addRaw(sharpyData({ id: 77 })); // collision -> generated
     const third = pool.addRaw(sharpyData());
 
-    expect([first.id, second.id, third.id]).toEqual([0, 1, 2]);
-    expect(pool.fixtures).toHaveLength(3);
+    expect(first.id).toBe(77);
+    expect(second.id).not.toBe(77);
+    expect(Number.isInteger(third.id)).toBe(true);
+    expect(new Set(pool.fixtures.map((f) => f.id)).size).toBe(3);
   });
 
   it('keeps numbering above the highest id already in the pool after a delete', () => {
@@ -207,14 +210,12 @@ describe('FixturePool#showData / #listable', () => {
     expect(pool.showData[0].position).toEqual({ x: 0, y: 2, z: 10 });
   });
 
-  it('never round-trips the mode name (upstream `modeNam` typo)', () => {
+  it('round-trips the mode name (upstream `modeNam` typo fixed)', () => {
     const pool = new FixturePool();
     pool.addRaw(sharpyData({ mode: 'Standard' }));
 
-    // Documents a real upstream defect: Fixture#showData reads `this.modeNam`
-    // rather than `this.modeName`, so the mode is dropped from the showfile.
     expect(pool.fixtures[0].modeName).toBe('Standard');
-    expect(pool.showData[0].mode).toBeUndefined();
+    expect(pool.showData[0].mode).toBe('Standard');
   });
 
   it('exposes listable entries carrying the universe/address summary', () => {

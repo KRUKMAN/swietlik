@@ -221,7 +221,7 @@ class Fixture extends Proxify {
       name: this.name,
       universe: this.universe,
       chStart: this.chStart,
-      mode: this.modeNam,
+      mode: this.modeName,
       position: this.position,
       rotation: this.rotation,
     };

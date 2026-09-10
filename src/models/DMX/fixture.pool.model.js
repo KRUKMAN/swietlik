@@ -94,7 +94,13 @@ class FixturePool extends Proxify {
    */
   addRaw(fixtureData) {
     const fixture = new Fixture(fixtureData);
-    fixture.id = this.genFixtureId();
+    // Preserve a caller-supplied id so serialized cross-references (universe
+    // patch, group membership) survive a save -> load round trip after a
+    // mid-pool delete; fall back to a generated id on absence or collision.
+    const wantedId = Number.isInteger(fixtureData?.id) ? fixtureData.id : null;
+    fixture.id = (wantedId !== null && !this.checkIfExists(wantedId))
+      ? wantedId
+      : this.genFixtureId();
     this.fixtures.push(fixture); // TODO: replace with ..AndStackUndo once patched
     return fixture;
   }
