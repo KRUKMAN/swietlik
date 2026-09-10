@@ -1,6 +1,7 @@
 # Świetlik — Phase 2 scope draft (input to the spec)
 
 > Author: lighting design & production consultancy pass, 2026-09-10.
+> Revised 2026-09-10 to add **§7 MIDI play** (GitHub issue #7).
 > Status: **scope proposal, not approved scope.** This is the input the Phase 2
 > spec is written from. It supersedes [`roadmap.md`](roadmap.md)'s Phase 2
 > ("stage builder") on sequencing only — the stage builder is not cancelled, it
@@ -10,17 +11,19 @@
 > findings), §3 (playback feel), §4 (programming surface), §5 (shell), §6 (stage
 > builder), §12 (Spotlight benchmark); [`ux-audit.md`](ux-audit.md) §4 ranked
 > issues; [`code-review-2026-09-09.md`](code-review-2026-09-09.md) §3
-> (stop-semantics root cause); GitHub issues #2 and #3.
+> (stop-semantics root cause); GitHub issues #2, #3 and #7.
 
 ---
 
 ## 0. The cut, in one sentence
 
-**Phase 2 makes the app an instrument you can operate: real transport semantics
-(Pause holds · Release fades · Blackout cuts, with resume-from-position), a
-workspace whose panels you can actually size, a timeline whose regions you can
-actually drag, and the one-day fixture-metadata record that unblocks every
-document Phase 3 will generate — and it builds no venue geometry at all.**
+**Phase 2 makes the app an instrument you can operate — and, if the stretch
+lands, an instrument you can literally play: real transport semantics (Pause
+holds · Release fades · Blackout cuts, with resume-from-position), a workspace
+whose panels you can actually size, a timeline whose regions you can actually
+drag, the one-day fixture-metadata record that unblocks every document Phase 3
+will generate, and a MIDI keyboard wired to the transport verbs — and it builds
+no venue geometry at all.**
 
 ### IN — ranked, with effort
 
@@ -31,20 +34,23 @@ document Phase 3 will generate — and it builds no venue geometry at all.**
 | **P2-3** | **Timeline v1 — show arrange surface** (tracks = groups, regions = chases/cues, drag/resize/snap/playhead/cycle) | MUST | 2.5 | Issue #2's serious half: there is no front door to the automation the demo performs. ux-audit #4 (clips resize but cannot move) is a false affordance sitting on the exact surface we need. |
 | **P2-4** | **Data-rich fixture records** (§12.2 #1) | MUST | 0.5 | The cheapest unblocking item in the whole vision, and it independently kills ux-audit #12 ("all 16 fixtures are called MAC Aura"). Nothing in Phase 3's paperwork can start without it. |
 | **P2-5** | **Keyboard router seed + `Ctrl+Z` reclaim** (rider on P2-1/P2-2) | MUST | 0.5 | Transport needs `Space`; timeline drags need undo; the app already has five uncoordinated `window` keydown listeners and `Ctrl+Z` bound to "apply gizmo transform". Adding a sixth listener in Phase 2 is how this becomes unfixable. |
+| **P2-6** | **MIDI play v1** (issue #7 — notes → transport verbs, velocity → level, sustain → latch, learn) | **STRONG, stretch** | 1.0 | On-thesis: a note-on *is* GO and a note-off *is* Release, so this is a thin adapter over P2-1 rather than a new subsystem. It is also the only item in the phase that produces a **demoable** win, which is the phase's stated weakness. Ruling and trade in §7.1. |
 
-**Total: 7.0 agent-weeks.** Cut line and de-scope order in §6.
+**Total: 8.0 agent-weeks** (7.0 without P2-6) — the top of the 4–8 week window,
+with zero slack. Cut line and de-scope order in §8.2.
 
 ### OUT — with the reason each one loses
 
 | Feature | Verdict | Reason |
 | --- | --- | --- |
 | **(e) Venue templates + drape** | **OUT — first item of Phase 3** | It hurts, because vision §6.1 calls it "the single highest-leverage item in Phase 2". It still is — of the *stage builder*. But its payoff is render believability, and render believability is Phase 3's job (bloom, exposure, haze). A ballroom lit by today's beam shader is a nicer diagram, not a sellable render. Ship venue + drape as the opening move of Phase 3 where it compounds with §10.1–10.4 instead of standing alone. |
-| **(f) Truss + hang positions** | **OUT — Phase 3** | My own ruling (§6.1) is templates before truss, and (e) is out. Beyond ordering: hang positions are *the* data-model decision of the stage builder (§6.2) — parent transforms, world-matrix composition, `InstancedMesh` slot updates at ~200 fixtures. That deserves its own brainstorm → spec → plan and one throwaway spike, not the tail end of a phase already carrying three surfaces. |
+| **(f) Truss + hang positions** | **OUT — Phase 3** | My own ruling (§6.1) is templates before truss, and (e) is out. Beyond ordering: hang positions are *the* data-model decision of the stage builder (§6.2) — parent transforms, world-matrix composition, `InstancedMesh` slot updates at ~200 fixtures. That deserves its own brainstorm → spec → plan and one throwaway spike, not the tail end of a phase already carrying four surfaces. |
 | **(g) Drag-drop placement + auto-patch/auto-number** | **OUT — Phase 3, after (f)** | It is defined as *drop onto a truss*. With no truss and no positions it degrades to "drag a light around a void", which is ux-audit #18 (make the visualizer clickable) wearing a costume — a real want, but a different feature with a different spec. Auto-numbering also depends on P2-4's `unitNumber` field existing, which is exactly why P2-4 is in. |
-| Presets / palettes (§7.3), looks (§7.5) | OUT | The timeline wants to hold *looks*; in Phase 2 it holds chases and cues instead. Palettes-as-references is a data-model commitment (§7.3) that must not be rushed in behind a UI deadline. |
+| Presets / palettes (§7.3), looks (§7.5) | OUT | The timeline wants to hold *looks*; in Phase 2 it holds chases and cues instead. Palettes-as-references is a data-model commitment (vision §7.3) that must not be rushed in behind a UI deadline. |
 | Automation lanes under tracks (§4.1) | OUT | The single largest sub-feature of the timeline. v1 ships regions only. Lanes are additive on top and are Phase 3/4. |
-| Audio timeline / tempo map (§11.9) | OUT | Needs Web Audio, beat detection, and a tempo-map model. Phase 3. The timeline ruler must be *built* to accept one (§P2-3 AC-14). |
-| Busking grid, cue stack rework (§7.7) | OUT | Same model, third presentation. Not until looks exist. |
+| Audio timeline / tempo map (§11.9) | OUT | Needs Web Audio, beat detection, and a tempo-map model. Phase 3. The timeline ruler must be *built* to accept one. |
+| MIDI clock sync, MIDI output/LED feedback, busk-recording into the timeline | OUT — see §7.5 | The three things everyone will ask for the day after P2-6 ships. All three are named, ranked and deferred there so they are not smuggled in. |
+| Busking grid, cue stack rework (§7.7) | OUT | Same model, third presentation. Not until looks exist. **Note:** P2-6 makes the *existing* grid the busking surface by giving it a physical controller, which buys most of the value without the rework. |
 | Full docking, tear-off panels, named workspaces, `Alt+1–9` screensets (§5.1 pro layer) | OUT | See P2-2. Splitters get 80% of issue #3 for 20% of the work. |
 | Presentation mode / `F11` (§5.2) | OUT — but cheap | Genuinely one afternoon. If P2-2 lands early, take it as a bonus; do not plan around it. |
 | Full undo history UI (§4.3 rule 6) | OUT | Phase 2 *binds* undo and requires every new mutation to be one undo step. The labelled history list is Phase 4. |
@@ -65,10 +71,11 @@ document Phase 3 will generate — and it builds no venue geometry at all.**
 4. **No paperwork.** No instrument schedule, no hookup, no power summary, no
    export. P2-4 ships the *data*, Phase 3 ships the *documents*.
 5. **No palettes, looks, presets or effect-preset library.** Vocabulary work on
-   the effects engine (§7.6) is Phase 4.
-6. **No output-arbitration rewrite.** See §4.7 — this is the phase's sharpest
-   boundary and its biggest risk.
-7. **No Electron, no router change, no `.asls` breaking change.** Everything
+   the effects engine (vision §7.6) is Phase 4.
+6. **No output-arbitration rewrite.** See §8.3 risk 1 — this is the phase's
+   sharpest boundary and its biggest risk.
+7. **No MIDI clock, no MIDI out, no SysEx, no MIDI-to-DMX passthrough.** §7.5.
+8. **No Electron, no router change, no `.asls` breaking change.** Everything
    Phase 2 persists is an optional additive key with a safe default when absent
    ([`contract-surfaces.md`](contract-surfaces.md) §1 — ADDITIVE-ONLY, no
    Ask First required, and old showfiles must still load; assert it in a test).
@@ -85,22 +92,25 @@ addresses it. A tool that feels like an instrument with a plain rig beats a tool
 with a beautiful rig that feels like a form. Phase 2 is therefore about the
 *hands*, not the *room*.
 
-**2. These four items are one story; venue geometry is a different one.** A
-coherent phase should be summarisable in a sentence an outsider believes.
-"Świetlik became operable" is one. "Świetlik became operable and also got a
-ballroom" is two phases sharing a branch. Ship one story, ship it whole.
+**2. These items are one story; venue geometry is a different one.** A coherent
+phase should be summarisable in a sentence an outsider believes. "Świetlik
+became operable" is one. "Świetlik became operable and also got a ballroom" is
+two phases sharing a branch. Ship one story, ship it whole. Issue #7 arrived
+*inside* that story rather than beside it, which is the strongest argument for
+taking it now (§7.1).
 
 **3. Dependency order is respected in both directions.** Records before
 paperwork (P2-4 before Phase 3's schedules). Templates before truss — and since
 templates are out, truss is out. Shell before timeline (P2-2 before P2-3),
 because the ux-audit measured the current automation editor at 60 px inside a
 fixed 239 px strip: building a great timeline into that hole is building it
-twice.
+twice. Transport before MIDI (P2-1 before P2-6), because a MIDI note-off with no
+release envelope behind it is just the existing cut-to-black with a nicer trigger.
 
-The one genuine loss: Phase 2 produces **no new screenshot a client would care
-about**. Everything here is felt, not seen. That is the correct trade this once —
-but it means Phase 3 must open with venue + drape + bloom and produce the
-"before/after" image, or the project goes two phases without a visible win.
+The one genuine loss: without P2-6, Phase 2 produces **no new screenshot a client
+would care about**. Everything else here is felt, not seen. That is the correct
+trade — but it is exactly why the MIDI stretch is worth its week (§7.1) and why
+Phase 3 must open with venue + drape + bloom.
 
 ---
 
@@ -129,7 +139,8 @@ Vision §3.2–§3.4 · issue #2 · ux-audit #3 (Blocker) · code-review §3.
   when you stop them"**, range 0–10 s, default **2 s**, sitting under the
   cluster. That slider *is* the release-time concept made touchable, and it is
   the first pro concept a non-LD will ever knowingly reach for. Everything else
-  in this section is defaults the simple layer never mentions.
+  in this section is defaults the simple layer never mentions. It is also the
+  control that does the musical work under a MIDI note-off (§7.2).
 - `Space` = Freeze/Continue. That is the only key the simple layer teaches.
 - Restart mode, quantize, release mask, per-playback release times: **not shown.**
 
@@ -345,8 +356,8 @@ windows** (vision §5.1).
 ### 3.4 Acceptance criteria
 
 Put the layout logic in a **headless layout model** (`src/views/shell/layout.model.js`
-or similar) so these are unit tests, not component tests. See §7 on the test-harness
-dependency.
+or similar) so these are unit tests, not component tests. See §8.3 on the
+test-harness dependency.
 
 - **AC-15** Dragging splitter *X* by *n* px changes the two adjacent regions'
   sizes by *+n* / *−n* and leaves total width/height invariant (±1 px).
@@ -390,8 +401,8 @@ Vision §4.1 · issue #2 · ux-audit #4 (Blocker), #26, #28.
 
 > I can see my whole show at once. Each group is a row. The things it plays are
 > blocks I can drag left and right, stretch, and copy. There's a playhead I can
-> drag to hear— to *see* — any moment. When I want the chorus to last eight bars
-> instead of four, I pull the edge of the block.
+> drag to see any moment. When I want the chorus to last eight bars instead of
+> four, I pull the edge of the block.
 
 ### 4.2 Scope
 
@@ -418,12 +429,13 @@ Vision §4.1 · issue #2 · ux-audit #4 (Blocker), #26, #28.
 
 **Not in v1:** automation lanes, per-fixture drill-down, curve editing, audio
 track, markers, looks-as-regions (looks don't exist yet), the cue-stack
-presentation.
+presentation, recording a MIDI busk into regions (§7.5).
 
 **State it in the spec so it is not built twice** (vision §4.1): the timeline and
 the future cue stack are two views of one model — a cue stack is a timeline whose
 regions are butted end-to-end and advanced by GO instead of by a clock. The
-Phase 2 region model must not encode "advanced by clock" as an assumption.
+Phase 2 region model must not encode "advanced by clock" as an assumption; that
+constraint is also what makes §7.5's busk-recording possible later.
 
 ### 4.3 Simple vs pro
 
@@ -509,7 +521,7 @@ Phase 2 — it becomes a real reference when hang positions land) · `circuit` �
 Surface it in exactly two places in Phase 2: the patch list shows
 `{unitNumber}: {name}` instead of the profile name, and the fixture inspector
 gains `name` + `purpose`. That is all the UI this feature gets — the spreadsheet
-view (§12.1) and every report is Phase 3.
+view (vision §12.1) and every report is Phase 3.
 
 Seed `weightKg` / `powerW` from OFL where present, leave null where not, and
 **never invent a number** — a null that says "unknown" is worth more than a
@@ -575,14 +587,253 @@ has five uncoordinated `window` keydown listeners.
 **AC-38** With focus in a text input, none of the above bindings fire.
 **AC-39** Every Phase 2 mutation — transport option change, region move, panel
 resize, metadata edit — is exactly one undo step with a human-readable label.
+(Exception, deliberate: live MIDI performance — see AC-57.)
 **AC-40** `get_keymap` (MCP) returns the binding registry, and the `?` sheet is
 generated from it rather than hand-written.
 
 ---
 
-## 7. Sequencing, the cut line, and risks
+## 7. P2-6 — MIDI play v1 (issue #7)
 
-### 7.1 Order
+**Rank: STRONG, stretch. Build: crisp. Effort: 1.0 agent-weeks.**
+New owner requirement, 2026-09-10: *"it should support using a MIDI keyboard to
+'play' the lights."*
+
+### 7.1 Ruling on placement — take it now, at a stated price
+
+**It belongs in Phase 2, as a ranked stretch item taken only after P2-1 and P2-2
+are verified done.** Four reasons, then the honest cost.
+
+1. **It is the same thesis, not an adjacent one.** Phase 2's sentence is "make
+   the app an instrument you can operate". A MIDI keyboard is the literal reading
+   of that sentence, and the mapping is close to 1:1 with the verbs specified two
+   sections ago: **note-on = GO, note-off = Release, and the release slider does
+   the musical work.** Velocity is an intensity scalar. Sustain is the
+   flash-vs-latch primitive every busking console has. There is nothing to invent.
+2. **It is a thin adapter, not a subsystem** — *provided* it dispatches into the
+   existing command registry (§7.4). Web MIDI gives events; the adapter turns an
+   event into a command name plus args and calls the same bus MCP calls. If it
+   ever grows its own control path into the models, it has become a subsystem and
+   the estimate is wrong.
+3. **It is the only demoable thing in the phase.** Risk 5 said Phase 2 produces
+   no screenshot a client cares about. MIDI play produces something better than a
+   screenshot: Jake at a party, playing the lights off a keyboard, filmed on a
+   phone. It is also the most convincing possible *proof* that the P2-1 work is
+   real — a note-off that cuts to black is instantly, publicly obvious.
+4. **Deferring it costs more than taking it.** Built later, it lands on top of a
+   busking grid, looks, and palettes that do not exist yet, and someone will
+   redesign the mapping around them. Built now against cues/chases/groups, the
+   mapping is *targets in the command registry* and survives all three.
+
+**The honest cost.** The phase was 7.0 agent-weeks in a 4–8 week window. This
+makes it **8.0 — the top of the window, no slack.** If something must give, in
+this order:
+
+1. **P2-3's stretch interactions go first** — cycle region, `Alt`-drag copy,
+   seconds ruler, marquee select (≈0.5 week). This is already the stated
+   de-scope order and it does not damage the feature.
+2. **P2-4's inspector UI slips to Phase 3** (≈0.2 week); the data model and the
+   MCP commands stay, because they are the part Phase 3 needs.
+3. **If more must give, P2-3 drops whole and P2-6 stays.** I want that ruling on
+   the record, because it inverts what I wrote yesterday. *Transport + shell +
+   MIDI* is a coherent, demonstrable, shippable phase — "an instrument you can
+   play". *Transport + shell + a timeline missing its drag* is not a phase, it is
+   a regression with extra steps. The timeline is a MUST; it is not a MUST *this
+   phase* if the phase would ship it broken.
+4. **What must never give:** P2-1's AC-1..AC-8. MIDI without release semantics is
+   issue #2 with a nicer trigger, and it would make the problem *more* visible,
+   not less.
+
+**Not a Phase 3 item.** The only argument for deferring is calendar, and the
+answer to calendar is the de-scope ladder above, not a phase boundary.
+
+### 7.2 The v1 interaction, defended to both audiences
+
+**To a working LD:** this is a flash/latch playback surface with a release time —
+the Avolites/MagicQ busking primitive, on a controller that happens to have
+velocity. Nothing here is novel and nothing here is wrong.
+**To Jake at a party:** you hold a key, lights happen; you let go, they fade; you
+hit it harder, it's brighter.
+
+**The out-of-the-box map, in one sentence Jake can remember:**
+*Split at middle C — below it the keys bump your groups, above it the keys fire
+your playback slots, hold the sustain pedal to latch instead of flash, and the
+mod wheel bends the speed of everything that's running.*
+
+| Control | Default binding | Semantics |
+| --- | --- | --- |
+| **Notes 48–59** (C3–B3, below the split) | Groups 1–12 in group order | **Bump.** Note-on brings the group to `velocity%` intensity immediately (never quantized — this is a live gesture). Note-off releases it over the group release time. Works on a brand-new show that contains nothing but groups, which is the whole point: zero programming required to make it fun. |
+| **Notes 60+** (C4 and up, above the split) | Playback slots 1..N — the cue/chase grid in the order it reads on screen (left-to-right, top-to-bottom) | **Flash.** Note-on = `transport_go` on that slot; note-off = `transport_release`. Honours that playback's quantize if set (arms and pulses — the one-frame rule applies identically to a key and a mouse click). |
+| **Sustain pedal (CC64)** | Latch modifier | ≥64 = held. Notes released while the pedal is down are *collected* and released together on pedal-up, exactly like a piano damper. This is flash-vs-latch expressed in an idiom a keyboard player already owns, and it is the best single idea in this section. |
+| **Velocity** | Intensity scalar, 0–127 → 0–100% of the playback's programmed level | Scales output; **never rewrites programmed values.** A "velocity sensitivity: off" toggle forces 100% — cheap keybeds and non-players both need it, and a client demo should not fail because someone tapped a key gently. |
+| **Mod wheel (CC1)** | Global rate/size master | Vision §3.5's busking move: one continuous control scales every running effect. The mod wheel is the one continuous controller every keyboard has, and "wobble the effects with the wheel" is what "play the lights" means to a musician. |
+| **CC7** | Grand master intensity | Most controllers send CC7 from their fader. |
+| **Pitch bend** | Momentary master dip; springs back to unity | The wheel is spring-loaded, so it must only ever drive something that *should* return. Bend down to duck the stage on a breakdown, release, it comes back. **Rule: never bind a spring-return control to a value that must persist.** |
+| **Program change** | Slot page up / down | Standard, free. |
+| **Transport verbs (Freeze / Release all / Blackout)** | **Unmapped by default** | Deliberate. A mis-hit blackout in front of a client is unrecoverable embarrassment; blackout in particular must be a decision, not an accident. All three are the first things offered in Learn, and binding Blackout asks once for confirmation. |
+| **Tap tempo** | Unmapped, learnable | Five lines, since `set_bpm`/tap already exist. This is the sanctioned alternative to MIDI clock (§7.5). |
+| **Pads** | Land in the note map like any other note, plus a one-click **"MPC pads" preset** remapping notes 36–51 → slots 1–16 | No device sniffing, no per-vendor dialects. One preset covers the common Akai/Novation layout; everything else is Learn. |
+
+**MIDI Learn flow** — steal Ableton's, unchanged, because it is the one every
+musician already knows:
+
+1. Click **MIDI Learn** (one toggle, in the MIDI panel and in the toolbar).
+2. Every mappable target in the UI gets a dashed outline. This is also, usefully,
+   a map of what the app can do.
+3. Click a target → it highlights → **touch the physical control** (press the
+   key, move the wheel) → bound. The target now wears a chip reading `C4` or
+   `CC1·ch1`. Click the chip to clear.
+4. **Range learn:** click the first grid slot, then play a run of keys — they
+   bind sequentially. Twenty bindings in one gesture; this is the fanning move,
+   and it is what stops Learn being tedious.
+5. Exit Learn. Bindings are live immediately.
+
+Binding a control that is already bound **moves** it and tells you what it took
+it from. Silent double-binding is how a busk goes wrong at 1 a.m.
+
+**Storage:** additive `.asls` key `midiMap` (per show), plus export/import as a
+small standalone JSON. Jake takes the same keyboard to every gig; he should not
+re-learn it per showfile, and a file he can carry is the SaaS-safe answer (no new
+filesystem assumptions, per the roadmap's product goals).
+
+### 7.3 Simple vs pro
+
+- **Simple:** plug the keyboard in, a toast says *"Launchkey 49 connected — play
+  the keys below middle C to bump your groups."* No panel, no setup, no
+  vocabulary. Velocity sensitivity on. That is the entire simple layer, and it is
+  a working product for a party.
+- **Pro:** the MIDI panel — device selector, channel filter, split-point control,
+  velocity curve (linear / soft / hard / fixed), per-binding release-time
+  override, Learn, range-learn, map export/import, and a live **MIDI monitor**
+  (last 20 messages, decoded). The monitor exists because every MIDI support
+  question in history is answered by "what is it actually sending", and it costs
+  an afternoon.
+
+### 7.4 Architecture — the constraint that keeps this at one week
+
+**The adapter dispatches into the existing command registry — the same bus MCP
+uses — and nowhere else.** Proposed additive layout: `src/midi/` with
+`midi.adapter.js` (Web MIDI access, device lifecycle), `midi.map.js` (bindings,
+pure), `midi.dispatch.js` (event → command name + args, pure). Zero upstream
+edits; one hook in `App.vue` alongside the existing MCP bridge hook.
+
+Consequences, all good:
+
+- Tests fake MIDI events as plain objects (`{ data: [0x90, 60, 100] }`) and spy
+  on the registry. **No hardware, no Web MIDI, no jsdom shim needed.**
+- Everything a MIDI key can do, Claude can do, and vice versa — the vision §1
+  corollary holds by construction rather than by discipline.
+- `simulate_midi` (§7.6) lets the verification checklist and any agent exercise
+  the whole feature headlessly.
+
+**Browser reality, verified:** Web MIDI is on by default in Chrome, Edge, Opera
+and Samsung Internet; Firefox 108+ supports it but requires a one-time site
+permission add-on; **Safari does not support it at all** (WebKit has declined it
+over device-fingerprinting concerns), so iPhone/iPad Safari is out. Chrome now
+prompts for permission even without SysEx. Request access with `sysex: false`,
+and treat "no Web MIDI" and "permission denied" as first-class UI states with
+plain-language copy, not console errors. Also expect that on Windows a port held
+by another application (a DAW) may fail to open — surface that as a named error,
+not a silent no-op.
+
+### 7.5 What v1 explicitly does NOT do
+
+| Not doing | Ruling |
+| --- | --- |
+| **MIDI clock / MTC / MMC sync** | **KILL for v1.** Tempting ("take BPM from the DJ") and a genuine rabbit hole: clock jitter, drift correction, start/stop/continue semantics — and vision §7.2 already dropped timecode as a different product. The sanctioned 95% answer is a **learnable tap-tempo target**: tap a key four times, BPM locks. Revisit clock only after a real gig asks. |
+| **MIDI output / LED feedback** | **KILL for v1**, and therefore: do not advertise grid controllers. A Launchpad with unlit pads is a worse experience than no Launchpad, so v1 targets *keyboards*. Feedback needs per-vendor SysEx dialects; it is the obvious v2 and should be scoped as its own item. |
+| **SysEx, NRPN, 14-bit CC pairs, MPE, MIDI 2.0** | **KILL.** YAGNI. 14-bit CC arrives as two independent 7-bit CCs and is documented as such (AC-56), not "handled". |
+| **MIDI → DMX channel passthrough** | **KILL.** The hobbyist request ("note 60 sets channel 12"). Wrong granularity, unmusical results, and it bypasses every abstraction the product is built on. Groups and playbacks are the correct unit. |
+| **Note-to-colour mapping** ("C is red, D is orange"; chords make colour chords) | **KILL, named so nobody re-proposes it.** It is a toy, it is unbounded, and it produces looks no designer would choose. |
+| **Recording a MIDI busk into timeline regions** | **Deferred to Phase 3 — and it is the prize.** "Busk it, then keep it" is genuinely excellent and the natural marriage of P2-3 and P2-6. It needs a show clock and a record model, which is exactly the decision in open question 1. Do not sneak it in; do keep the region model free of clock assumptions (§4.2) so it stays possible. |
+| **Multiple simultaneous controllers, per-device profiles** | Out. One active input device in v1, selectable. |
+| **OSC, hardware consoles, DMX-in** | Out — vision §11.1, post-v1, different feature. |
+
+### 7.6 Acceptance criteria
+
+All model-layer. MIDI events are plain objects; assertions are made against the
+command registry, so no hardware and no Web MIDI implementation is required.
+
+- **AC-41 Note-on fires GO.** A note-on on a bound slot dispatches exactly one
+  `transport_go` for that slot, synchronously, in the same turn — no timer, no
+  `await`.
+- **AC-42 Note-off releases.** The matching note-off dispatches exactly one
+  `transport_release` with the target's `releaseMs` (default 2000). Re-pressing
+  the same key applies the target's restart mode.
+- **AC-43 Velocity-0 note-on is a note-off.** `[0x90, 60, 0]` must behave
+  identically to `[0x80, 60, 64]`. (Running-status convention; a naive
+  implementation gets this wrong and leaves lights stuck on.)
+- **AC-44 Velocity scales.** With sensitivity on: velocity 127 → 100%, 64 → 50%
+  ±1%, 1 → 1% ±1%. The playback's stored programmed values are unchanged after
+  the gesture.
+- **AC-45 Sensitivity off.** Any velocity yields 100%.
+- **AC-46 Sustain latches.** With CC64 ≥ 64 held, note-offs dispatch nothing; on
+  CC64 < 64 every note released during the hold is released in one batch, and
+  notes still physically held are not.
+- **AC-47 Spring-return returns.** Pitch bend to 0x2000 (centre) restores the
+  master to unity within one dispatch turn, from any prior bend value.
+- **AC-48 Continuous controls are never quantized.** CC1 and CC7 changes apply on
+  the turn they arrive, regardless of any quantize setting (mirrors AC-12).
+- **AC-49 Default map.** With no `midiMap` present: notes 48–59 resolve to groups
+  1–12 in group order; notes 60+ resolve to playback slots in grid order;
+  unmapped notes dispatch nothing and log nothing (a 61-key controller must not
+  spam the console).
+- **AC-50 Learn binds on press, not release.** While learning target T, the next
+  note-on or CC binds; a note-off does not. Binding a control that is already
+  bound moves it and reports the displaced target.
+- **AC-51 Range learn.** Learning from slot *k* and receiving *n* ascending
+  note-ons binds slots *k..k+n−1* to those notes in order.
+- **AC-52 One gesture, one command, same bus.** A registry spy sees exactly one
+  command per MIDI gesture, with the same command name and argument shape an MCP
+  call would produce. **This is the architectural invariant — assert it
+  explicitly, in its own test.**
+- **AC-53 Disconnect is safe.** Simulating a port disconnect while three notes
+  are held releases all three over their release times. **No stuck lights, ever —
+  this is the one that matters at a real party.**
+- **AC-54 Panic messages.** CC123 (all notes off) and CC120 (all sound off)
+  release everything MIDI is currently holding, and nothing it is not.
+- **AC-55 Clock is ignored, not mishandled.** 0xF8 (clock), 0xFA/0xFB/0xFC
+  (start/continue/stop), 0xFE (active sensing) and 0xF0 (SysEx) dispatch nothing
+  and throw nothing. Active sensing arrives roughly three times a second; it must
+  not appear in the monitor's default view or in the log.
+- **AC-56 14-bit CC is two CCs.** MSB/LSB pairs produce two independent CC
+  events; documented behaviour, not a bug.
+- **AC-57 Performance is not undo.** MIDI note and CC gestures produce **no undo
+  entries** (a three-minute busk would otherwise destroy the stack). **Binding
+  changes made in Learn *are* one undo step each.** Explicit, deliberate
+  exception to AC-39.
+- **AC-58 Map round-trip.** `midiMap` round-trips through `.asls`; a showfile
+  without it loads on the default map; export → import reproduces bindings
+  exactly.
+- **AC-59 No device, no drama.** With Web MIDI unavailable or permission denied,
+  the app runs normally and the MIDI panel shows plain-language copy naming the
+  cause. No unhandled rejection, no console error.
+
+### 7.7 MCP surface
+
+| Command | Args |
+| --- | --- |
+| `get_midi_devices` | — → available inputs, active input, permission/support state |
+| `set_midi_device` | `device_id \| null` |
+| `get_midi_map` | — → bindings, split point, velocity settings |
+| `set_midi_binding` | `control` (`{ type: note\|cc\|bend\|pc, number, channel? }`), `target` (`{ command, args }`) |
+| `clear_midi_binding` | `control \| target` |
+| `midi_learn` | `state`, `target?` |
+| `set_midi_options` | `velocity_sensitivity?`, `velocity_curve?`, `split_note?`, `channel_filter?` |
+| **`simulate_midi`** | `bytes` (e.g. `[144, 60, 100]`) — injects an event as if from hardware |
+
+`simulate_midi` is the load-bearing one. It makes the whole feature testable and
+demonstrable **without a keyboard plugged in**, lets an agent drive the
+[`verification.md`](verification.md) checklist for MIDI, and — not incidentally —
+means Claude can play the lights too, which is the product's thesis taken to its
+logical end. `get_show_state` gains a `midi` block;
+`test/mcp/tool-parity.spec.js` updates in the same PR.
+
+---
+
+## 8. Sequencing, the cut line, and risks
+
+### 8.1 Order
 
 1. **Week 1–2 — P2-1 model layer.** `ReleaseEnvelope`, pause/resume state
    preservation, `master.cueRow` overlap, defaults, AC-1..AC-14. Pure model, no
@@ -592,20 +843,30 @@ generated from it rather than hand-written.
 2. **Week 2 — P2-4** in parallel (different files, half a week, unblocks Phase 3).
 3. **Week 3 — P2-2 shell** + **P2-5 router**, and the toolbar transport cluster
    lands on top of the now-green model.
-4. **Week 4–6 — P2-3 timeline** in the pane the shell just created.
-5. **Week 7 — verification**, [`verification.md`](verification.md) run, demo-show
+4. **Week 4 — P2-6 MIDI play.** Deliberately placed *before* the timeline: it
+   depends only on P2-1 plus a small panel, it is the phase's proof-of-life demo,
+   and putting a stretch item after the largest item is how stretch items die.
+   Its dispatch and map modules are pure, so it can also proceed in parallel with
+   week 3 if a second agent is free.
+5. **Week 5–7 — P2-3 timeline** in the pane the shell created.
+6. **Week 8 — verification**, [`verification.md`](verification.md) run, demo-show
    pass, `upstream-diff.md` reconciliation.
 
-### 7.2 The cut line — decide it now, not in week 6
+### 8.2 The cut line — decide it now, not in week 7
 
-If at the end of **week 4** P2-1 and P2-2 are not both verified done, **P2-3
+If at the end of **week 4** P2-1, P2-2 and P2-6 are not all verified done, **P2-3
 drops to Phase 3 in its entirety** — not partially. A half-built timeline is
 worse than the current one, because the current one at least does not promise
 drag. De-scope order within P2-3 if it is close: cycle region → `Alt`-drag copy →
 seconds ruler → marquee select. **Never** cut region *dragging* (AC-24); that is
 the whole feature.
 
-### 7.3 Risks, ranked
+Within P2-6, the de-scope order is: MIDI monitor → velocity curves → range-learn
+→ pads preset. **Never** cut AC-53 (disconnect releases held notes) or AC-43
+(velocity-0 note-on); both leave lights stuck on, which is the worst failure this
+feature has.
+
+### 8.3 Risks, ranked
 
 1. **There is no output arbitration layer, and "release" implies one.** Vision
    §3.2 says a release should fade "to whatever the next-priority source says".
@@ -616,59 +877,83 @@ the whole feature.
    still-running playbacks write last and win**. That is crisp and testable
    (AC-5, AC-8). The risk is that it looks perfect in a one-playback demo and
    frays the moment two playbacks share fixtures, which is precisely what the
-   shipped demo show does. **Mitigation: write AC-5 and AC-8 against a
-   two-playback overlap on day one, before any UI exists.** A real HTP/LTP
-   arbitration stage is a rewrite of the write path and would eat the entire
-   phase — explicitly out, explicitly logged as the Phase 3/4 decision it is.
+   shipped demo show does — **and MIDI play makes it far more likely, because
+   holding a chord means four playbacks running at once by design.**
+   **Mitigation: write AC-5 and AC-8 against a two-playback overlap on day one,
+   before any UI exists, and add a four-note-chord case to the P2-6 test set.** A
+   real HTP/LTP arbitration stage is a rewrite of the write path and would eat
+   the entire phase — explicitly out, explicitly logged as the Phase 3/4 decision
+   it is. **If chord-play looks wrong in week 4, that is the signal that
+   arbitration has become Phase 3's headline item.**
 2. **No Vue component test harness exists** (`CLAUDE.md` §5: no
-   `@vue/test-utils`, no testing-library). Two of the three headline items are
-   UI. **Mitigation and standing instruction: all layout and timeline *logic*
-   goes in headless modules with unit tests (AC-15..AC-32 are written to be
-   satisfiable that way); the SFCs stay thin.** Installing a component harness is
-   an `Ask First` dependency decision — raise it, don't drive-by it.
+   `@vue/test-utils`, no testing-library). Two of the four headline items are UI.
+   **Mitigation and standing instruction: all layout, timeline and MIDI-map
+   *logic* goes in headless modules with unit tests (AC-15..AC-32 and
+   AC-41..AC-59 are written to be satisfiable that way); the SFCs stay thin.**
+   Installing a component harness is an `Ask First` dependency decision — raise
+   it, don't drive-by it.
 3. **Upstream merge debt.** P2-1 touches `cue.model.js`, `chase.model.js`,
    `master.model.js`, `group.model.js`; P2-5 touches `controls.js`; P2-2 touches
-   the app activity and the modifier fragments. That is the largest upstream
-   surface any phase has taken. Every one goes in `upstream-diff.md` in the same
-   change (the Stop hook enforces it), and every one should first be interrogated
-   for an additive alternative.
-4. **Scope creep from the timeline into looks/palettes.** The moment someone says
-   "a region should be a *look*", the phase doubles. Regions reference existing
-   chases and cues. Full stop.
-5. **Phase 2 produces no new pretty screenshot.** Manage the expectation up
-   front, and open Phase 3 with venue + drape + bloom.
+   the app activity and the modifier fragments. P2-6 should touch **nothing**
+   upstream except one hook line in `App.vue` — if a MIDI PR starts editing
+   models, the design has drifted from §7.4 and the estimate is void. Every
+   upstream edit goes in `upstream-diff.md` in the same change (the Stop hook
+   enforces it).
+4. **Scope creep from the timeline into looks/palettes, and from MIDI into clock
+   sync.** The moment someone says "a region should be a *look*", or "we could
+   just read MIDI clock", the phase doubles. Regions reference existing chases
+   and cues; MIDI reads notes and CCs. Full stop.
+5. **Browser and permission surface for MIDI.** Safari has no Web MIDI at all and
+   Chrome now prompts even without SysEx (§7.4). A demo that dies on a permission
+   dialog in front of a client is a bad day. Mitigation: explicit UI states,
+   `simulate_midi` as the hardware-free fallback path, and a line in the release
+   notes that Safari is unsupported.
+6. **Phase 2 still produces no new *render*.** P2-6 gives it a demo, not a
+   picture. Open Phase 3 with venue + drape + bloom.
 
 ---
 
-## 8. Open questions for Jake
+## 9. Open questions for Jake
 
-Five, and only ones whose answers change what gets built.
+Five, and only ones whose answers change what gets built. Issue #7 sharpened
+three of them.
 
 1. **Does the playhead run the show, or edit it?** Two different products.
    (a) *Linear*: the timeline is the show — one playhead drives everything, like
    Logic. (b) *Editor*: the timeline arranges chases that are still fired
    independently by hand, and the playhead is a rehearsal tool. **My assumption
-   is (b) for Phase 2** — it is additive over the existing model and does not
-   force a show-level clock — but (a) is what "put my show together against the
-   track" eventually means, and choosing it now changes the region model.
-2. **When you press the toolbar's Freeze with nothing selected, what should
-   freeze — the whole show, or the last thing you touched?** Global is safer and
-   matches `Live`'s existing pause; last-touched is what a console operator
-   expects. Whichever you pick becomes the meaning of `Space`, and it is hard to
-   change later without retraining you.
-3. **Should Blackout kill real DMX output too, or only the preview?** For a
-   previz-first tool "blackout the picture" is arguably right; for anyone with a
-   gateway plugged in, a blackout button that doesn't black out the actual rig is
-   dangerous. My default: **both**, always, no setting.
+   is (b) for Phase 2.**
+   **MIDI angle:** busking with a keyboard is inherently (b), which strengthens
+   the assumption — but "record what I just played into the timeline" (§7.5) is
+   the single most attractive Phase 3 follow-on and it needs a show clock. So the
+   real question is *which one first*, not which one ever.
+2. **When you press Freeze with nothing selected, what should freeze — the whole
+   show, or the last thing you touched?**
+   **MIDI angle, and it now tips the answer:** a MIDI transport key has *no
+   selection context at all*, and during a busk "the last thing you touched"
+   changes every bar. That makes last-touched semantics genuinely dangerous under
+   a keyboard and pushes me toward **global**. Confirm, because it fixes the
+   meaning of `Space` and of any learned transport key.
+3. **Should Blackout kill real DMX output too, or only the preview?** My default:
+   **both, always, no setting.**
+   **MIDI angle:** this is also why Blackout is *unmapped by default* and asks
+   for confirmation when you bind it (§7.2) — a mis-hit black key in front of a
+   client is the worst outcome this feature can produce. Flag it if you disagree
+   with either half.
 4. **Bottom pane: one editor at a time behind tabs (Logic), or several
    collapsible panels stacked in a rail (Lightroom)?** I have specified tabs
    because it structurally kills the 3318 px overflow. The rail keeps more
    visible at once if you'd rather see the colour picker and the channels
    together. This changes the shell build, not just its skin.
-5. **The trade, if week 4 goes badly:** would you rather have (a) transport +
-   shell + timeline and nothing visual, or (b) transport + shell + **venue
-   templates and drape** — a room, black legs, and renders that suddenly look
-   like a show — with the timeline slipping a phase? I have specified (a) and I
-   stand behind it, but (b) is the version that gives you something to show a
-   client at the end of Phase 2, and you are the one who has to show clients
+5. **The trade, and the controller.** Two halves of one decision.
+   (a) If week 4 goes badly, which **two** of these three land in Phase 2 — the
+   **timeline**, **MIDI play**, or **venue templates + drape** (a room, black
+   legs, renders that look like a show)? My ruling is transport + shell + MIDI,
+   with the timeline slipping, because it is the only combination that is both
+   coherent and demonstrable — but you are the one who has to show clients
    things.
+   (b) **Which controller are you actually plugging in** — a 25/49/61-key
+   keyboard, something with pads, or a grid controller? The default map in §7.2
+   assumes a keyboard with a mod wheel; if it is a Launchpad, v1's "no MIDI out /
+   no LED feedback" ruling makes it a poor experience and I would change both the
+   defaults and the scope.
