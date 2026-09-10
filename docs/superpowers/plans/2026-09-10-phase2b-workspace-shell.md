@@ -1,5 +1,7 @@
 # Świetlik Phase 2B — Workspace Shell + Keyboard Router Implementation Plan
 
+> **STATUS: INCOMPLETE DRAFT — drafting agent was killed by a rate limit mid-write (2026-09-10).** It ends abruptly after ~8 tasks; the keyboard-router (P2-5) tasks and/or verification section may be missing — check against the spec scope table before trusting. Before executing: have an agent read the spec + this draft, complete the missing tasks/sections in the same style, then run the writing-plans self-review (spec coverage / placeholders / signature consistency). Do not execute an unreviewed draft.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make every panel in Świetlik resizable behind our own `uk-workspace` wrapper, move the app root to an additive `workspace.activity.vue` that shares one bootstrap composable with the existing activity, and land the single additive keyboard router that reclaims `Ctrl+Z` for undo — all for **three modified lines in `src/App.vue` plus one `package.json` dependency line**.

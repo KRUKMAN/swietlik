@@ -1,5 +1,7 @@
 # Świetlik Phase 2 Workstream A — Housekeeping + Transport Implementation Plan
 
+> **STATUS: INCOMPLETE DRAFT — drafting agent was killed by a rate limit mid-write (2026-09-10).** It cuts off mid-Task (release-envelope implementation); the trailing <!-- APPEND-HERE --> marks the append point. Verification section and later tasks (UI routing, transport bar, MCP group per spec ruling 11) are missing. Before executing: have an agent read the spec + this draft, complete the missing tasks/sections in the same style, then run the writing-plans self-review (spec coverage / placeholders / signature consistency). Do not execute an unreviewed draft.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make Świetlik's playback feel like a real rig — GO, Freeze (pause in place), Continue (phase-preserving resume), Let go (a fade, never a cut), Clear-the-stage, and a latched BLACKOUT — implemented as an additive `src/transport/` singleton that drives ordinary `Live` animations, plus the two P2-0 housekeeping items (`@vue/compat` removal, `ShowSingleton` serialisation seam) that the rest of Phase 2 stands on.
@@ -1263,7 +1265,7 @@ export function releaseAccessorsFor(fixture) {
 - [ ] **Step 5: Run test to verify it passes**
 
 Run: `npx vitest run test/transport/release.mask.spec.js`
-Expected: PASS, 9 tests.
+Expected: PASS, 8 tests.
 
 - [ ] **Step 6: Lint and commit**
 
@@ -2142,7 +2144,7 @@ export class HoldEnvelope {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run test/transport/release.envelope.spec.js`
-Expected: PASS, 14 tests.
+Expected: PASS, 16 tests.
 
 If the AC-1 ladder comes back `[255, 191, 127, 63, 0]`, the implementation is rounding rather than letting `setChannel` ceil — remove the rounding, the ceil is upstream's and the ±2 tolerance in AC-1 exists for exactly this.
 
