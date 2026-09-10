@@ -6,6 +6,9 @@
 
 <script>
 import AppActivity from './views/activities/app/app.activity.vue';
+// Świetlik fork: starts the MCP command bridge on the existing `app_ready`
+// EventBus event. Side-effect import only -- see docs/swietlik/upstream-diff.md.
+import '@/mcp-bridge';
 
 export default {
   name: 'App',

@@ -1,0 +1,43 @@
+{
+  "$comment": "Świetlik agent harness. Both hooks fail OPEN on any internal error and block at most once per stop sequence. Rationale, escape hatches and the evidence behind each gate: docs/swietlik/agentic-harness-proposal.md.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/gate-evidence.mjs\" record",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/upstream-diff-check.mjs\" notify",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/gate-evidence.mjs\" check",
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/upstream-diff-check.mjs\" check",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -247,6 +247,38 @@ describe('Show#loadFromLocalStorage', () => {
 
     expect(show.name).toBe('current_show');
   });
+
+  // Regression: `??` only falls through on null/undefined, never on an empty
+  // string, so a blanked-but-present primary key used to hide a perfectly
+  // good legacy autosave instead of falling back to it.
+  it('falls back to the legacy key when the current key is an empty string', async () => {
+    const show = buildShow();
+    localStorage.setItem(SHOWFILE_KEY, '');
+    localStorage.setItem(LEGACY_SHOWFILE_KEY, JSON.stringify(showFileData({ name: 'legacy_show' })));
+
+    await expect(show.loadFromLocalStorage()).resolves.toBe(true);
+
+    expect(show.name).toBe('legacy_show');
+  });
+
+  // Regression: an empty (or whitespace-only) string is not null, so the old
+  // `!= null` guard let `JSON.parse('')` run and throw uncaught.
+  it('returns false without throwing when both keys are empty/whitespace-only strings', async () => {
+    const show = buildShow();
+    localStorage.setItem(SHOWFILE_KEY, '   ');
+    localStorage.setItem(LEGACY_SHOWFILE_KEY, '');
+
+    await expect(show.loadFromLocalStorage()).resolves.toBe(false);
+  });
+
+  // Regression: malformed JSON in the primary key used to throw an uncaught
+  // SyntaxError, hanging the app on the loading screen forever.
+  it('returns false without throwing when the current key holds malformed JSON', async () => {
+    const show = buildShow();
+    localStorage.setItem(SHOWFILE_KEY, '{oops');
+
+    await expect(show.loadFromLocalStorage()).resolves.toBe(false);
+  });
 });
 
 describe('Show#clearShowData', () => {

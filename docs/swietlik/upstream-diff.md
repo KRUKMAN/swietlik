@@ -10,22 +10,23 @@ git diff develop...HEAD --name-status
 
 `develop` is the pristine `ASLS-org/studio` mirror, so this diff *is* the fork's divergence. Keep this file in sync — **any new upstream edit must be added here in the same change that makes it** (see `/CLAUDE.md` §2).
 
-- **Scope of this snapshot:** Phase 0 (branch `phase-0-foundation`)
+- **Scope of this snapshot:** Phase 0 (branch `phase-0-foundation`) + Phase 1 MCP work (branch `phase-1-mcp`)
 - **Totals:** 52 files changed, +5337 / −5954 (of which `package-lock.json` alone is +1298/−5597 churn from the dependency bump and package rename)
 
 ---
 
-## Modified upstream files (20)
+## Modified upstream files (24)
 
 ### Root / config
 
 | File | Reason |
 | --- | --- |
-| `package.json` | Rebrand (`name`, `author`, `contributors` crediting Timé Kadel); added `test` / `test:run` / `lint:ci` scripts; `@asls/wsc-*` `^2.0.5` → `^2.2.0`; added `vitest` + `jsdom`; dropped `semantic-release` and its `release` block (upstream's release pipeline is not ours). |
-| `package-lock.json` | Regenerated for the dependency changes above. |
+| `package.json` | Rebrand (`name`, `author`, `contributors` crediting Timé Kadel); added `test` / `test:run` / `lint:ci` scripts; `@asls/wsc-*` `^2.0.5` → `^2.2.0`; added `vitest` + `jsdom`; dropped `semantic-release` and its `release` block (upstream's release pipeline is not ours). Phase 1: added `mcp` script and dev-deps `@modelcontextprotocol/sdk` + `ws` for the MCP server. |
+| `package-lock.json` | Regenerated for the dependency changes above (Phase 0) and the Phase 1 MCP dev-deps. |
 | `.env` | `WSC_VERSION` `2.2.0-rc.6` → `2.2.0`, aligning the Electron prebuild download with the bumped `@asls/wsc-*` packages. |
 | `index.html` | Tab title → `Świetlik`; favicon repointed to `/images/swietlik_logo.svg`. |
 | `.eslintrc.js` | Resolver settings so `lint:ci` reaches 0 errors: ignore `?worker`/`?raw` Vite query imports in `import/no-unresolved`, add three's extensionless `three/examples/jsm/*` paths to `import/core-modules`, add a node resolver fallback. |
+| `.gitignore` | One added line: `.vite-start.log`, the dev-server log written when Vite is started in the background. (Logged retroactively — found by `.claude/scripts/check-upstream-ledger.mjs` on its first run.) |
 
 ### Documentation / attribution
 
@@ -50,13 +51,18 @@ git diff develop...HEAD --name-status
 
 | File | Reason |
 | --- | --- |
-| `src/models/DMX/show.model.js` | localStorage key migration: writes `SWIETLIK_SHOWFILE`, falls back to reading upstream's `ASLS_STUDIO_SHOWFILE` so existing autosaves on `localhost:5173` still load. **The only runtime model file this fork has touched.** |
+| `src/models/DMX/show.model.js` | localStorage key migration: writes `SWIETLIK_SHOWFILE`, falls back to reading upstream's `ASLS_STUDIO_SHOWFILE` so existing autosaves on `localhost:5173` still load. Also: `loadFromLocalStorage` now treats an empty/whitespace-only value as absent (was `??`, which never falls through on `''`) and wraps the parse+load in try/catch that returns `false` instead of throwing uncaught — fixes code-review-2026-09-09.md §1.1/§5.1 (app hangs on load). |
+| `src/models/DMX/universe.model.js` | `checkPatchCapability` rewritten from a dead `Array#forEach` (`return false` inside it was a no-op, so the function always returned `true` and patch-collision detection never fired) to a short-circuiting `.every`, plus an explicit 512-address range check — fixes code-review-2026-09-09.md §2.2/§5.2. |
+| `src/models/DMX/fixture.model.js` (incl. `chCount` getter) | `setChannel` now throws a descriptive `Invalid channel id ${id} for fixture ${this.name}` error for an out-of-range/non-integer channel id instead of an opaque `TypeError` from indexing `undefined` — fixes code-review-2026-09-09.md §2.3/§5.3. |
+| `src/models/DMX/cue.item.model.js` | `fadeOut` setter fixed to assign `this._fadeOut` (it was assigning `this._fadeIn`, clobbering `fadeIn` and making `fadeOut` permanently unreadable) — fixes code-review-2026-09-09.md §2.1/§5.5. |
+| `src/models/DMX/cue.pool.model.js` | `genCueId` reduced over `this.chases` (copy-paste from ChasePool) — threw on any `addCue` without an explicit id; fixed to `this.cues`. Found by Task 3 agent; regression test `test/models/cuePool.spec.js`. |
 | `src/views/activities/app/_popups/popup.splash.vue` | Branding: Świetlik wordmark, release/branch links repointed to `KRUKMAN/swietlik`, copyright line reworked to `KRUKMAN © 2026 · based on ASLS Studio © ASLS-org 2021–2026`. |
 | `src/views/activities/app/fragments/toolbar/toolbar.fragment.vue` | Branding: added a persistent `KRUKMAN © 2026 · based on ASLS Studio` toolbar strip (attribution surface); Manual/Contact menu links repointed to this repo and `github.com/KRUKMAN`. |
 | `src/views/activities/app/fragments/toolbar/_popups/popup.newshow.vue` | Branding: template entry `ASLS Demo` → `Demo Show`. |
 | `src/views/activities/app/fragments/toolbar/_popups/popup.saveas.vue` | Branding: default download filename `asls_showfile` → `swietlik_showfile`. |
 | `src/views/activities/app/fragments/modifiers/_widgets/modifier.widget.colorpicker.vue` | Pre-existing lint **errors** (comma-operator assignments, `let`-that-should-be-`const`, unused vars, over-long template line) blocking `lint:ci` at 0 errors. Behaviour-neutral. |
 | `src/views/components/uikit/lists/uikit.list.vue` | Pre-existing lint error: unused `e` parameter on `handleFocusOut` (and its now-stale JSDoc `@param`). Behaviour-neutral. |
+| `src/App.vue` | Phase 1 MCP bridge: one side-effect import (`import '@/mcp-bridge';`) that subscribes the bridge to the existing `app_ready` EventBus event. Chosen over `app.activity.vue` because it is the smaller diff — three lines, no change to any existing statement. |
 
 ---
 
@@ -104,3 +110,7 @@ New files only; nothing upstream to conflict with.
 - `public/images/swietlik_logo.svg`
 - `src/assets/images/swietlik_logo_textual.svg`, `src/assets/images/swietlik_standalone_logo.svg`
 - `CLAUDE.md`, `docs/swietlik/roadmap.md`, `docs/swietlik/verification.md`, `docs/swietlik/upstream-diff.md` (this file)
+- `.mcp.json` — registers the Phase 1 MCP server for Claude Code sessions in this repo.
+- `mcp/package.json`, `mcp/protocol.js`, `mcp/tools.js`, `mcp/hub.js`, `mcp/server.js` — Phase 1 MCP server package (plain Node ESM, no build step). GPL-3.0 like the rest of the repo.
+- `src/mcp-bridge/` — in-app WS bridge and command registry: `index.js`, `bridge.js`, `ofl.js`, `commands/{index,registry,validate}.js`, `commands/{query,patch,control,show,vision}.commands.js`.
+- `test/mcp-bridge/*.spec.js`, `test/mcp/*.spec.js`, `test/helpers/show-double.js` — Phase 1 test suites and the shared show double.

@@ -263,6 +263,41 @@ describe('Fixture#setChannel -- propagation into the 3D model', () => {
   });
 });
 
+describe('Fixture#setChannel -- bounds checking', () => {
+  // Regression: an out-of-range `id` used to fall straight through to
+  // `channel.fineChannels` on `undefined`, throwing an opaque
+  // "Cannot read properties of undefined (reading 'fineChannels')".
+  it('throws a descriptive error for a channel id past the end of channels', () => {
+    const fixture = buildSharpy();
+    const outOfRange = fixture.channels.length;
+
+    expect(() => fixture.setChannel(outOfRange, 100))
+      .toThrow(`Invalid channel id ${outOfRange} for fixture ${fixture.name}`);
+  });
+
+  it('throws a descriptive error for a negative channel id', () => {
+    const fixture = buildSharpy();
+
+    expect(() => fixture.setChannel(-1, 100))
+      .toThrow(`Invalid channel id ${-1} for fixture ${fixture.name}`);
+  });
+
+  it('throws a descriptive error for a non-integer channel id', () => {
+    const fixture = buildSharpy();
+
+    expect(() => fixture.setChannel(1.5, 100))
+      .toThrow(`Invalid channel id ${1.5} for fixture ${fixture.name}`);
+  });
+
+  it('still sets valid, in-range channel ids normally', () => {
+    const fixture = buildSharpy();
+    const dimmer = channelOfType(fixture, 'Dimmer');
+
+    expect(() => fixture.setChannel(dimmer.id - 1, 200)).not.toThrow();
+    expect(dimmer.value.DMX).toBe(200);
+  });
+});
+
 describe('Fixture -- highlighting delegates to the Controls singleton', () => {
   it('records an attach on the Controls stub when highlighting with centerControls', () => {
     const fixture = buildSharpy();

@@ -334,11 +334,25 @@ class Show extends EventEmitter {
   async loadFromLocalStorage() {
     // Falls back to the upstream ASLS Studio key so existing autosaves still load.
     // The legacy key is never written to nor removed.
-    const ls_showdata = localStorage.getItem(LOCALSTORAGE_SHOWFILE_KEY)
-      ?? localStorage.getItem(LEGACY_LOCALSTORAGE_SHOWFILE_KEY);
-    if (ls_showdata != null) {
-      await this.loadFromData(JSON.parse(ls_showdata));
-      return true;
+    // `??` only falls through on null/undefined, never on an empty (or
+    // whitespace-only) string -- treat those as absent too, for both keys,
+    // so a blanked-but-present primary key doesn't hide a good legacy
+    // autosave (docs/swietlik/code-review-2026-09-09.md §1.1).
+    const isBlank = (value) => value == null || value.trim() === '';
+    const primary = localStorage.getItem(LOCALSTORAGE_SHOWFILE_KEY);
+    const ls_showdata = isBlank(primary)
+      ? localStorage.getItem(LEGACY_LOCALSTORAGE_SHOWFILE_KEY)
+      : primary;
+    if (!isBlank(ls_showdata)) {
+      try {
+        await this.loadFromData(JSON.parse(ls_showdata));
+        return true;
+      } catch (err) {
+        // Malformed JSON must not throw uncaught and hang the app on the
+        // loading screen -- fail soft, same as the on-disk showfile path.
+        console.warn('Show#loadFromLocalStorage: could not load stored showfile', err);
+        return false;
+      }
     }
     return false;
   }

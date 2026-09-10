@@ -1,0 +1,7 @@
+# Per-session hook state written by .claude/hooks/gate-evidence.mjs. Local and disposable —
+# it records which validation gates were observed green in the current session.
+#
+# A nested .gitignore is used deliberately rather than editing the root one: the root .gitignore
+# is an upstream file, so a line there would be merge debt against ASLS-org/studio for a purely
+# local artefact. New files are free (CLAUDE.md §2).
+.gate-state.json

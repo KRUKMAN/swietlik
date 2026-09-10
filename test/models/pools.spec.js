@@ -3,6 +3,7 @@ import {
 } from 'vitest';
 import FixturePool from '@/models/DMX/fixture.pool.model';
 import UniversePool from '@/models/DMX/universe.pool.model';
+import Fixture from '@/models/DMX/fixture.model';
 import MovingHead from '../stubs/moving_head.stub';
 import Controls, { calls as controlsCalls } from '../stubs/controls.stub';
 import loadOFL from '../helpers/ofl';
@@ -324,7 +325,16 @@ describe('Universe#showData -- nested fixture pool', () => {
   it('nests the patched fixtures under the universe chunk', () => {
     const pool = new UniversePool();
     const universe = pool.addRaw({ id: 3, name: 'Front', color: '#ff0000' });
-    const fixture = universe.fixturePool.addRaw(sharpyData({ name: 'Sharpy A', chStart: 1 }));
+    // Representative call pattern: real call sites (`show.model.js`,
+    // `universe.modifier.popup.patch.vue`) build the fixture once -- either
+    // via the Show-level fixturePool.addRaw or (as here) a plain constructed
+    // Fixture -- and hand it to Universe#patchFixture, which is the only
+    // thing that pushes it into the *universe's own* fixturePool
+    // (`addExisting`). Also calling `universe.fixturePool.addRaw(...)`
+    // first, as this test used to, pushes the same fixture into that same
+    // local pool a second time -- a test artifact, not real `patchFixture`
+    // behaviour.
+    const fixture = new Fixture(sharpyData({ id: 0, name: 'Sharpy A', chStart: 1 }));
     universe.patchFixture(fixture);
 
     const { showData } = universe;
@@ -333,9 +343,7 @@ describe('Universe#showData -- nested fixture pool', () => {
     expect(showData.id).toBe(3);
     expect(showData.name).toBe('Front');
     expect(showData.color).toBe('#ff0000');
-    // patchFixture pushes the fixture a second time via addExisting, so the
-    // nested list mirrors the pool contents rather than the patch map.
-    expect(showData.fixtures.every((chunk) => chunk.name === 'Sharpy A')).toBe(true);
+    expect(showData.fixtures).toHaveLength(1);
     expect(showData.fixtures[0]).toMatchObject({
       id: 0,
       name: 'Sharpy A',
@@ -351,5 +359,64 @@ describe('Universe#showData -- nested fixture pool', () => {
     expect(universe.showData.name).toBe('Universe 0');
     expect(typeof universe.showData.color).toBe('string');
     expect(universe.showData.fixtures).toEqual([]);
+  });
+});
+
+describe('Universe#checkPatchCapability', () => {
+  // Regression: `return false` inside the old `Object.keys(...).forEach(...)`
+  // callback only returned from that one invocation -- it never stopped the
+  // loop and had zero effect on `checkPatchCapability`'s own return value, so
+  // the function unconditionally fell through to `return true`. Collision
+  // detection was completely dead.
+  //
+  it('rejects a range overlapping an already-patched fixture', () => {
+    const pool = new UniversePool();
+    const universe = pool.addRaw();
+    const fixture = new Fixture(sharpyData({ id: 0, chStart: 1 }));
+    universe.patchFixture(fixture);
+
+    // fixture occupies [1, 1 + channels.length); start one channel inside it.
+    const overlappingStart = fixture.chStart + 1;
+    expect(universe.checkPatchCapability(overlappingStart, fixture.channels.length)).toBe(false);
+  });
+
+  it('rejects an overlapping fixture end-to-end through patchFixture', () => {
+    // `patchFixture` guards via `fixture.chCount` -- the getter makes the
+    // incoming width real so the collision check protects actual callers.
+    const pool = new UniversePool();
+    const universe = pool.addRaw();
+    const first = new Fixture(sharpyData({ id: 0, chStart: 1 }));
+    universe.patchFixture(first);
+    expect(first.chCount).toBe(first.channels.length);
+
+    const overlapping = new Fixture(sharpyData({ id: 1, chStart: first.chStart + 1 }));
+    const before = universe.fixturePool.fixtures.length;
+    expect(() => universe.patchFixture(overlapping)).toThrow(/Cannot patch/);
+    expect(universe.fixturePool.fixtures.length).toBe(before);
+  });
+
+  it('allows an adjacent, non-overlapping range', () => {
+    const pool = new UniversePool();
+    const universe = pool.addRaw();
+    const fixture = new Fixture(sharpyData({ id: 0, chStart: 1 }));
+    universe.patchFixture(fixture);
+
+    // Starting exactly at the patched fixture's chStop must be allowed:
+    // [1, chStop) and [chStop, chStop + n) do not overlap.
+    expect(universe.checkPatchCapability(fixture.chStop, fixture.channels.length)).toBe(true);
+  });
+
+  it('rejects a range whose end exceeds the 512-address universe length', () => {
+    const pool = new UniversePool();
+    const universe = pool.addRaw();
+
+    expect(universe.checkPatchCapability(500, 20)).toBe(false);
+  });
+
+  it('allows a plain non-colliding, in-range patch', () => {
+    const pool = new UniversePool();
+    const universe = pool.addRaw();
+
+    expect(universe.checkPatchCapability(1, 10)).toBe(true);
   });
 });
